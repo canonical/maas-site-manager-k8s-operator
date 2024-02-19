@@ -1,0 +1,66 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: msm-k8s
+type: charm
+title: MAAS Site Manager Operator for Kubernetes
+summary: A Juju charm to run MAAS Site Manager on Kubernetes.
+description: |
+  A Juju-operated MAAS Site Manager that orchestrates image provisioning on
+  many MAAS sites.
+
+links:
+  website: https://launchpad.net/maas-site-manager
+  source: https://git.launchpad.net/maas-site-manager
+  issues: https://bugs.launchpad.net/maas-site-manager
+  documentation: https://git.launchpad.net/maas-site-manager/tree/README.md
+
+bases:
+  - build-on:
+      - name: ubuntu
+        channel: "22.04"
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
+
+assumes:
+  - juju >= 3.3
+  - k8s-api
+
+containers:
+  site-manager:
+    resource: site-manager-image
+
+resources:
+  site-manager-image:
+    type: oci-image
+    description: MAAS Site Manager OCI image
+    # TODO (@skatsaounis): Change to MSM image when available - Not needed by Juju
+    upstream-source: localhost:32000/charmed-msm:registry
+
+requires:
+  database:
+    interface: postgresql_client
+    limit: 1
+  logging-consumer:
+    interface: loki_push_api
+  ingress:
+    interface: ingress
+    limit: 1
+
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
+  grafana-dashboard:
+    interface: grafana_dashboard
+
+config:
+  options:
+    # An example config option to customise the log level of the workload
+    log-level:
+      description: |
+        Configures the log level of gunicorn.
+
+        Acceptable values are: "info", "debug", "warning", "error" and "critical"
+      default: "info"
+      type: string
