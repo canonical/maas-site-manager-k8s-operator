@@ -13,6 +13,7 @@ https://juju.is/docs/sdk/create-a-minimal-kubernetes-charm
 """
 
 import logging
+from typing import Dict, cast
 
 import ops
 import requests
@@ -162,7 +163,7 @@ class MsmOperatorCharm(ops.CharmBase):
         for endpoint in loki_endpoints:
             is_existing = False
             for target in layer.get("log-targets", {}).values():
-                if target["location"] == endpoint:
+                if target.get("location", "") == endpoint:
                     target["services"] = ["all"]
                     is_existing = True
                     break
@@ -175,14 +176,13 @@ class MsmOperatorCharm(ops.CharmBase):
                     "override": "replace",
                     "type": "loki",
                     "location": endpoint,
-                    "services": ["all"]
+                    "services": ["all"],
                 }
 
         # Check for departed endpoints
         for target in layer.get("log-targets", {}).values():
-            if target["location"] not in loki_endpoints:
+            if target.get("location", "") not in loki_endpoints:
                 target["services"] = []
-
 
     @property
     def _pebble_layer(self) -> ops.pebble.LayerDict:
@@ -201,7 +201,7 @@ class MsmOperatorCharm(ops.CharmBase):
             },
         }
 
-        return layer
+        return cast(ops.pebble.LayerDict, layer)
 
     @property
     def version(self) -> str:
@@ -217,7 +217,7 @@ class MsmOperatorCharm(ops.CharmBase):
         return ""
 
     @property
-    def app_environment(self):
+    def app_environment(self) -> Dict:
         """This property method creates a dictionary containing environment variables for the application.
 
         It retrieves the database authentication data by calling
