@@ -10,5 +10,3 @@ jobs:
     name: PR
     uses: canonical/observability/.github/workflows/charm-pull-request.yaml@main
     secrets: inherit
-    with:
-      ip-range: 10.64.140.43/30
