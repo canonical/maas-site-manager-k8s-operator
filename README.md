@@ -8,12 +8,10 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# msm-operator
+# MAAS Site Manager Kubernetes Charmed Operator
 
-Charmhub package name: operator-template
-More information: https://charmhub.io/msm-operator
-
-Describe your charm in one or two sentences.
+Charmhub package name: maas-site-manager-k8s-operator
+More information: <https://charmhub.io/maas-site-manager-k8s>
 
 ## Other resources
 
