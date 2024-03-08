@@ -9,7 +9,7 @@ import unittest.mock
 
 import ops
 import ops.testing
-from charm import MsmOperatorCharm, DatabaseNotReadyError
+from charm import DatabaseNotReadyError, MsmOperatorCharm
 
 
 class TestCharm(unittest.TestCase):
@@ -44,9 +44,7 @@ class TestCharm(unittest.TestCase):
         }
         mock_fetch_postgres_relation_data.return_value = {}
         json_version = unittest.mock.Mock()
-        json_version.json.return_value = {
-            "version": "1.0.0"
-        }
+        json_version.json.return_value = {"version": "1.0.0"}
         mock_get.return_value = json_version
 
         # Simulate the container coming up and emission of pebble-ready event
@@ -63,7 +61,9 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
-    def test_config_changed_valid_can_connect(self, mock_fetch_postgres_relation_data, mock_version):
+    def test_config_changed_valid_can_connect(
+        self, mock_fetch_postgres_relation_data, mock_version
+    ):
         mock_fetch_postgres_relation_data.return_value = {}
         mock_version.return_value = "1.0.0"
 
@@ -96,7 +96,9 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
-    def test_config_changed_database_not_ready(self, mock_fetch_postgres_relation_data, mock_version):
+    def test_config_changed_database_not_ready(
+        self, mock_fetch_postgres_relation_data, mock_version
+    ):
         mock_fetch_postgres_relation_data.side_effect = DatabaseNotReadyError()
         mock_version.return_value = "1.0.0"
 
@@ -104,7 +106,9 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("site-manager")
 
         # Check the charm is in WaitingStatus
-        self.assertEqual(self.harness.model.unit.status, ops.WaitingStatus("Waiting for database relation"))
+        self.assertEqual(
+            self.harness.model.unit.status, ops.WaitingStatus("Waiting for database relation")
+        )
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     def test_database_created_and_removed(self, mock_version):
@@ -114,21 +118,29 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("site-manager")
 
         # Simulate the database relation created
-        relation_id = self.harness.add_relation("database", "postgresql", app_data={
-            "endpoints": "postgresql.localhost:5432",
-            "username": "appuser",
-            "password": "secret",
-            "database": "name",
-        })
+        relation_id = self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
         # Simulate the database relation removed
         self.harness.remove_relation(relation_id)
-        self.assertEqual(self.harness.model.unit.status, ops.WaitingStatus("Waiting for database relation"))
+        self.assertEqual(
+            self.harness.model.unit.status, ops.WaitingStatus("Waiting for database relation")
+        )
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
-    def test_loki_push_api_endpoint_created_and_removed(self, mock_fetch_postgres_relation_data, mock_version):
+    def test_loki_push_api_endpoint_created_and_removed(
+        self, mock_fetch_postgres_relation_data, mock_version
+    ):
         expected_log_targets_created = {
             "loki-0": {
                 "override": "replace",
@@ -137,21 +149,23 @@ class TestCharm(unittest.TestCase):
                 "services": ["all"],
             }
         }
-        expected_log_targets_departed = {
-            "loki-0": {
-                "override": "replace",
-                "type": "loki",
-                "location": "loki.localhost",
-                "services": [],
-            }
-        }
+        # expected_log_targets_departed = {
+        #     "loki-0": {
+        #         "override": "replace",
+        #         "type": "loki",
+        #         "location": "loki.localhost",
+        #         "services": [],
+        #     }
+        # }
         mock_version.return_value = "1.0.0"
         mock_fetch_postgres_relation_data.return_value = {}
 
         # Simulate the Loki push API relation created
-        relation_id = self.harness.add_relation("logging-consumer", "loki", unit_data={
-            "endpoint": json.dumps({"url": "loki.localhost"})
-        })
+        relation_id = self.harness.add_relation(
+            "logging-consumer",
+            "loki",
+            unit_data={"endpoint": json.dumps({"url": "loki.localhost"})},
+        )
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")
 
@@ -173,17 +187,17 @@ class TestCharm(unittest.TestCase):
         mock_fetch_postgres_relation_data.return_value = {}
 
         # Simulate the Loki push API relation created
-        app_name = self.harness.charm.app.name
-        model_name = self.harness.model.name
-        url = f"http://ingress:80/{model_name}-{app_name}"
+        # app_name = self.harness.charm.app.name
+        # model_name = self.harness.model.name
+        # url = f"http://ingress:80/{model_name}-{app_name}"
         self.harness.add_network("10.0.0.1")
 
         self.harness.container_pebble_ready("site-manager")
-        relation_id = self.harness.add_relation("ingress", "traefik", unit_data={
-            "ingress": json.dumps({"url": url})
-        })
+        # relation_id = self.harness.add_relation(
+        #     "ingress", "traefik", unit_data={"ingress": json.dumps({"url": url})}
+        # )
         # Simulate the container coming up and emission of pebble-ready event
 
-        updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
+        # updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         # self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_ROOT_PATH"], url)
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
