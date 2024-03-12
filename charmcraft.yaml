@@ -1,7 +1,7 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-name: msm-k8s
+name: maas-site-manager-k8s
 type: charm
 title: MAAS Site Manager Operator for Kubernetes
 summary: A Juju charm to run MAAS Site Manager on Kubernetes.
