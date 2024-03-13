@@ -8,6 +8,4 @@ on:
 jobs:
   release:
     uses: skatsaounis/observability/.github/workflows/charm-release.yaml@fix-tests
-    secrets:
-      CHARMHUB_TOKEN: ${{ secrets.CHARMHUB_TOKEN }}
-      OBSERVABILITY_NOCTUA_TOKEN: ""
+    secrets: inherit

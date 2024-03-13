@@ -157,6 +157,7 @@ class TestCharm(unittest.TestCase):
         #         "services": [],
         #     }
         # }
+
         mock_version.return_value = "1.0.0"
         mock_fetch_postgres_relation_data.return_value = {}
 
