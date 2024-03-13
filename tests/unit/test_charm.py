@@ -175,6 +175,7 @@ class TestCharm(unittest.TestCase):
 
         # Simulate the database relation removed
         self.harness.remove_relation(relation_id)
+
         # TODO (@skatsaounis): fix me
         # updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         # self.assertEqual(updated_plan["log-targets"], expected_log_targets_departed)
