@@ -10,10 +10,13 @@ description: |
   many MAAS sites.
 
 links:
-  website: https://launchpad.net/maas-site-manager
-  source: https://git.launchpad.net/maas-site-manager
-  issues: https://bugs.launchpad.net/maas-site-manager
-  documentation: https://git.launchpad.net/maas-site-manager/tree/README.md
+  documentation: https://discourse.charmhub.io/t/maas-site-manager-k8s-docs-index/13710
+  website:
+    - https://charmhub.io/maas-site-manager-k8s
+  source:
+    - https://github.com/canonical/maas-site-manager-k8s-operator
+  issues:
+    - https://github.com/canonical/maas-site-manager-k8s-operator/issues
 
 bases:
   - build-on:
