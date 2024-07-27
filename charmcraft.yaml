@@ -64,8 +64,30 @@ config:
   options:
     log-level:
       description: |
-        Configures the log level of gunicorn.
+        Configures the log level of WSGI HTTP Server.
 
         Acceptable values are: "info", "debug", "warning", "error" and "critical"
       default: "info"
       type: string
+
+actions:
+  create-admin:
+    description: Create an administrator account.
+    params:
+      username:
+        type: string
+        description: Username for the new account.
+      fullname:
+        type: string
+        description: Full name for this user.
+      password:
+        type: string
+        description: A password for this user.
+      email:
+        type: string
+        description: Specifies the email of the admin user.
+    required:
+      - username
+      - fullname
+      - password
+      - email
