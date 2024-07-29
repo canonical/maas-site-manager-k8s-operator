@@ -37,7 +37,7 @@ class TestCharm(unittest.TestCase):
                         "MSM_DB_USER": None,
                         "MSM_DB_NAME": None,
                         "MSM_DB_PASSWORD": None,
-                        "MSM_ROOT_PATH": None,
+                        "MSM_BASE_PATH": None,
                     },
                 }
             },
@@ -201,5 +201,5 @@ class TestCharm(unittest.TestCase):
         # Simulate the container coming up and emission of pebble-ready event
 
         # updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
-        # self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_ROOT_PATH"], url)
+        # self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_BASE_PATH"], url)
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
