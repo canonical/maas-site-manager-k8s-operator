@@ -13,7 +13,8 @@ https://juju.is/docs/sdk/create-a-minimal-kubernetes-charm
 """
 
 import logging
-from typing import Dict, cast
+from typing import Dict, Union, cast
+from urllib.parse import urlparse
 
 import ops
 import requests
@@ -30,7 +31,7 @@ from charms.traefik_k8s.v2.ingress import (
 # Log messages can be retrieved using juju debug-log
 logger = logging.getLogger(__name__)
 
-VALID_LOG_LEVELS = ["info", "debug", "warning", "error", "critical"]
+VALID_LOG_LEVELS = ["info", "debug", "warning", "error", "critical", "trace"]
 SERVICE_PORT = 8000
 
 
@@ -190,6 +191,16 @@ class MsmOperatorCharm(ops.CharmBase):
     @property
     def _pebble_layer(self) -> ops.pebble.LayerDict:
         """Return a dictionary representing a Pebble layer."""
+        cmd_line = [
+            "uvicorn",
+            "--host 0.0.0.0",
+            f"--port {SERVICE_PORT}",
+            "--factory",
+            "--loop uvloop",
+        ]
+        if self.root_path:
+            cmd_line.append(f"--root-path {self.root_path}")
+        cmd_line.append("msm.api:create_app")
         layer = {
             "summary": "site-manager layer",
             "description": "pebble config layer for site-manager",
@@ -197,7 +208,7 @@ class MsmOperatorCharm(ops.CharmBase):
                 f"{self.pebble_service_name}": {
                     "override": "replace",
                     "summary": "MAAS Site Manager",
-                    "command": f"uvicorn --host 0.0.0.0 --port {SERVICE_PORT} --factory --loop uvloop msm.api:create_app",
+                    "command": " ".join(cmd_line),
                     "startup": "enabled",
                     "environment": self.app_environment,
                 }
@@ -220,6 +231,14 @@ class MsmOperatorCharm(ops.CharmBase):
         return ""
 
     @property
+    def root_path(self) -> Union[str, None]:
+        """Get external path prefix handled by the proxy."""
+        if u := self._ingress.url:
+            return urlparse(u).path
+        else:
+            return None
+
+    @property
     def app_environment(self) -> Dict:
         """This property method creates a dictionary containing environment variables for the application.
 
@@ -236,7 +255,7 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_DB_USER": db_data.get("db_username", None),
             "MSM_DB_NAME": db_data.get("db_name", None),
             "MSM_DB_PASSWORD": db_data.get("db_password", None),
-            "MSM_ROOT_PATH": self._ingress.url,
+            "MSM_BASE_PATH": self._ingress.url,
         }
         return env
 
