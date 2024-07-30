@@ -88,6 +88,9 @@ class MsmOperatorCharm(ops.CharmBase):
         self.framework.observe(self._ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self._ingress.on.revoked, self._on_ingress_revoked)
 
+        # Charm actions
+        self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
+
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
 
@@ -271,6 +274,28 @@ class MsmOperatorCharm(ops.CharmBase):
             else:
                 return db_data
         raise DatabaseNotReadyError()
+
+    def _on_create_admin_action(self, event: ops.ActionEvent):
+        """Handle the create-admin action.
+
+        Args:
+            event (ops.ActionEvent): Event from the framework
+        """
+        username = event.params["username"]
+        fullname = event.params["fullname"]
+        password = event.params["password"]
+        email = event.params["email"]
+
+        if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
+            try:
+                proc = self.container.exec(
+                    ["msm-admin", "create-user", "--admin", username, email, fullname, password],
+                    service_context=self.pebble_service_name,
+                )
+                proc.wait()
+                event.set_results({"info": f"user {username} successfully created"})
+            except ops.pebble.ExecError:
+                event.fail(f"Failed to create user {username}")
 
 
 if __name__ == "__main__":  # pragma: nocover
