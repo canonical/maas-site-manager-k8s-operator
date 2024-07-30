@@ -13,7 +13,7 @@ https://juju.is/docs/sdk/create-a-minimal-kubernetes-charm
 """
 
 import logging
-from typing import Dict, cast
+from typing import Dict, Union, cast
 from urllib.parse import urlparse
 
 import ops
@@ -228,7 +228,7 @@ class MsmOperatorCharm(ops.CharmBase):
         return ""
 
     @property
-    def root_path(self) -> str | None:
+    def root_path(self) -> Union[str, None]:
         """Get external path prefix handled by the proxy."""
         if u := self._ingress.url:
             return urlparse(u).path
