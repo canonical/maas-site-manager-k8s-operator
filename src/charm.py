@@ -99,7 +99,7 @@ class MsmOperatorCharm(ops.CharmBase):
         self.unit.status = ops.MaintenanceStatus("Assembling pod spec")
 
         # Fetch the new config value
-        log_level = self.model.config["log-level"].lower()
+        log_level = str(self.model.config["log-level"]).lower()
 
         # Do some validation of the configuration options
         if log_level not in VALID_LOG_LEVELS:
