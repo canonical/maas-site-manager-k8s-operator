@@ -3,7 +3,7 @@
 
 name: maas-site-manager-k8s
 type: charm
-title: MAAS Site Manager Operator for Kubernetes
+title: MAAS Site Manager Kubernetes Operator
 summary: A Juju charm to run MAAS Site Manager on Kubernetes.
 description: |
   A Juju-operated MAAS Site Manager that orchestrates image provisioning on
