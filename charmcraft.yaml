@@ -42,7 +42,7 @@ resources:
   site-manager-image:
     type: oci-image
     description: MAAS Site Manager OCI image
-    upstream-source: ghcr.io/maas/maas-site-manager:0.1
+    upstream-source: ghcr.io/canonical/maas-site-manager:0.1
 
 requires:
   database:
