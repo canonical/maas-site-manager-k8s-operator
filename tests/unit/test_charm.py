@@ -9,6 +9,7 @@ import unittest.mock
 
 import ops
 import ops.testing
+
 from charm import DatabaseNotReadyError, MsmOperatorCharm
 
 
