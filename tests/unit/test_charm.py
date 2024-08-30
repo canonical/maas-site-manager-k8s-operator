@@ -4,6 +4,7 @@
 # Learn more about testing at: https://juju.is/docs/sdk/testing
 
 import json
+import os
 import unittest
 import unittest.mock
 
@@ -204,3 +205,115 @@ class TestCharm(unittest.TestCase):
         # updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         # self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_BASE_PATH"], url)
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+
+
+class TestCharmActions(unittest.TestCase):
+
+    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
+    def setUp(self):
+        self.harness = ops.testing.Harness(MsmOperatorCharm)
+        self.harness.set_model_name("maas-dev-model")
+        self.addCleanup(self.harness.cleanup)
+        self.harness.begin()
+
+    def _connect(self):
+        self.harness.container_pebble_ready("site-manager")
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+
+    def test_create_admin_action(self):
+        def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            self.assertEqual(
+                args.command,
+                [
+                    "msm-admin",
+                    "create-user",
+                    "--admin",
+                    "my_user",
+                    "my_email@local.net",
+                    "my_secret",
+                    "my full name",
+                ],
+            )
+            return ops.testing.ExecResult(exit_code=0)
+
+        self._connect()
+        self.harness.handle_exec("site-manager", ["msm-admin"], handler=create_admin_handler)
+        output = self.harness.run_action(
+            "create-admin",
+            {
+                "username": "my_user",
+                "password": "my_secret",
+                "email": "my_email@local.net",
+                "fullname": "my full name",
+            },
+        )
+        self.assertEqual(output.results, {"info": "user my_user successfully created"})
+
+    def test_create_admin_action_no_fullname(self):
+        def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            self.assertEqual(
+                args.command,
+                [
+                    "msm-admin",
+                    "create-user",
+                    "--admin",
+                    "my_user",
+                    "my_email@local.net",
+                    "my_secret",
+                ],
+            )
+            return ops.testing.ExecResult(exit_code=0)
+
+        self._connect()
+        self.harness.handle_exec("site-manager", ["msm-admin"], handler=create_admin_handler)
+        output = self.harness.run_action(
+            "create-admin",
+            {
+                "username": "my_user",
+                "password": "my_secret",
+                "email": "my_email@local.net",
+            },
+        )
+        self.assertEqual(output.results, {"info": "user my_user successfully created"})
+
+    def test_create_admin_action_failed(self):
+        def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            return ops.testing.ExecResult(exit_code=1)
+
+        self._connect()
+        self.harness.handle_exec("site-manager", ["msm-admin"], handler=create_admin_handler)
+
+        with self.assertRaises(ops.testing.ActionFailed):
+            self.harness.run_action(
+                "create-admin",
+                {
+                    "username": "my_user",
+                    "password": "my_secret",
+                    "email": "my_email@local.net",
+                },
+            )
+
+    def test_create_admin_action_not_ready(self):
+        def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            return ops.testing.ExecResult(exit_code=0)
+
+        self.harness.handle_exec("site-manager", ["msm-admin"], handler=create_admin_handler)
+
+        with self.assertRaises(ops.testing.ActionFailed):
+            self.harness.run_action(
+                "create-admin",
+                {
+                    "username": "my_user",
+                    "password": "my_secret",
+                    "email": "my_email@local.net",
+                },
+            )
