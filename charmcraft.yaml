@@ -88,6 +88,5 @@ actions:
         description: Specifies the email of the admin user.
     required:
       - username
-      - fullname
       - password
       - email

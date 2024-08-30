@@ -301,20 +301,25 @@ class MsmOperatorCharm(ops.CharmBase):
             event (ops.ActionEvent): Event from the framework
         """
         username = event.params["username"]
-        fullname = event.params["fullname"]
         password = event.params["password"]
         email = event.params["email"]
+
+        cmd_line = ["msm-admin", "create-user", "--admin", username, email, password]
+        if fullname := event.params.get("fullname", None):
+            cmd_line.append(fullname)
 
         if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
             try:
                 proc = self.container.exec(
-                    ["msm-admin", "create-user", "--admin", username, email, fullname, password],
+                    cmd_line,
                     service_context=self.pebble_service_name,
                 )
                 proc.wait()
                 event.set_results({"info": f"user {username} successfully created"})
             except ops.pebble.ExecError:
                 event.fail(f"Failed to create user {username}")
+        else:
+            event.fail(f"Failed to create user {username}")
 
 
 if __name__ == "__main__":  # pragma: nocover
