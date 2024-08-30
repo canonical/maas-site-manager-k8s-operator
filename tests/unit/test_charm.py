@@ -10,6 +10,7 @@ import unittest.mock
 
 import ops
 import ops.testing
+
 from charm import DatabaseNotReadyError, MsmOperatorCharm
 
 
@@ -208,6 +209,7 @@ class TestCharm(unittest.TestCase):
 
 class TestCharmActions(unittest.TestCase):
 
+    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("maas-dev-model")
@@ -227,7 +229,6 @@ class TestCharmActions(unittest.TestCase):
             },
         )
 
-    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def test_create_admin_action(self):
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
@@ -257,7 +258,6 @@ class TestCharmActions(unittest.TestCase):
         )
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
-    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def test_create_admin_action_no_fullname(self):
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
@@ -285,7 +285,6 @@ class TestCharmActions(unittest.TestCase):
         )
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
-    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def test_create_admin_action_failed(self):
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             return ops.testing.ExecResult(exit_code=1)
@@ -303,7 +302,6 @@ class TestCharmActions(unittest.TestCase):
                 },
             )
 
-    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def test_create_admin_action_not_ready(self):
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             return ops.testing.ExecResult(exit_code=0)
