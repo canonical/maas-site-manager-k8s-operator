@@ -12,8 +12,11 @@ develop a new k8s charm using the Operator Framework:
 https://juju.is/docs/sdk/create-a-minimal-kubernetes-charm
 """
 
+import json
 import logging
-from typing import Dict, Union, cast
+import secrets
+import string
+from typing import Any, Dict, Optional, Union, cast
 from urllib.parse import urlparse
 
 import ops
@@ -21,6 +24,7 @@ import requests
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LokiPushApiConsumer
+from charms.maas_site_manager_k8s.v0 import enrol
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
@@ -30,15 +34,26 @@ from charms.traefik_k8s.v2.ingress import (
     IngressPerAppRevokedEvent,
 )
 
+from api import SiteManagerClient
+
 # Log messages can be retrieved using juju debug-log
 logger = logging.getLogger(__name__)
 
 VALID_LOG_LEVELS = ["info", "debug", "warning", "error", "critical", "trace"]
 SERVICE_PORT = 8000
+MSM_PEER_NAME = "site-manager-cluster"
+MSM_CREDS_ID = "site-manager-operator-cred-id"
+MSM_CREDS_SECRET = "site-manager-operator-cred"
+
+PASSWD_CHOICES = string.ascii_letters + string.digits
 
 
 class DatabaseNotReadyError(Exception):
     """Signals that the database cannot yet be used."""
+
+
+class OperatorUserError(Exception):
+    """Signals that the charm user is not available."""
 
 
 @trace_charm(
@@ -82,6 +97,13 @@ class MsmOperatorCharm(ops.CharmBase):
             self.on["site-manager"].pebble_ready, self._update_layer_and_restart
         )
         self.framework.observe(self.on.config_changed, self._update_layer_and_restart)
+
+        # Enrolment service
+        self._enrol = enrol.EnrolProvider(self)
+        enrol_events = self.on[enrol.DEFAULT_ENDPOINT_NAME]
+        self.framework.observe(enrol_events.relation_joined, self._on_maas_enrol_joined)
+        self.framework.observe(enrol_events.relation_broken, self._on_maas_enrol_broken)
+
         # Database connection
         self.framework.observe(self._database.on.database_created, self._on_database_created)
         self.framework.observe(self._database.on.endpoints_changed, self._on_database_created)
@@ -145,6 +167,15 @@ class MsmOperatorCharm(ops.CharmBase):
 
         # add workload version in juju status
         self.unit.set_workload_version(self.version)
+
+        if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
+            try:
+                self._create_operator_user()
+            except OperatorUserError as ex:
+                logger.error(ex)
+                self.unit.status = ops.BlockedStatus("Failed to create operator user")
+                return
+
         self.unit.status = ops.ActiveStatus()
 
     def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
@@ -308,6 +339,37 @@ class MsmOperatorCharm(ops.CharmBase):
                 return db_data
         raise DatabaseNotReadyError()
 
+    def _create_msm_user(
+        self, username: str, password: str, email: str, fullname: Union[str, None] = None
+    ) -> bool:
+        """Create an admin user.
+
+        Args:
+            username (str): username
+            password (str): password
+            email (str): e-mail address
+            fullname (Union[str, None]): Fullname (optional)
+
+        Returns:
+            bool: whether the user was created
+        """
+        logger.info(f"creating user {username}")
+        cmd_line = ["msm-admin", "create-user", "--admin", username, email, password]
+        if fullname:
+            cmd_line.append(fullname)
+        if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
+            try:
+                proc = self.container.exec(
+                    cmd_line,
+                    service_context=self.pebble_service_name,
+                )
+                proc.wait()
+                return True
+            except ops.pebble.ExecError:
+                return False
+        else:
+            return False
+
     def _on_create_admin_action(self, event: ops.ActionEvent):
         """Handle the create-admin action.
 
@@ -317,23 +379,76 @@ class MsmOperatorCharm(ops.CharmBase):
         username = event.params["username"]
         password = event.params["password"]
         email = event.params["email"]
+        fullname = event.params.get("fullname", None)
 
-        cmd_line = ["msm-admin", "create-user", "--admin", username, email, password]
-        if fullname := event.params.get("fullname", None):
-            cmd_line.append(fullname)
-
-        if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
-            try:
-                proc = self.container.exec(
-                    cmd_line,
-                    service_context=self.pebble_service_name,
-                )
-                proc.wait()
-                event.set_results({"info": f"user {username} successfully created"})
-            except ops.pebble.ExecError:
-                event.fail(f"Failed to create user {username}")
+        if self._create_msm_user(username, password, email, fullname):
+            event.set_results({"info": f"user {username} successfully created"})
         else:
             event.fail(f"Failed to create user {username}")
+
+    def _create_operator_user(self) -> None:
+        username = f"{self.app.name}-operator"
+        fullname = f"{self.app.name} charm operator"
+        password = "".join([secrets.choice(PASSWD_CHOICES) for i in range(16)])
+        email = f"no-reply@{self.app.name}.charm"
+
+        if self._create_msm_user(username, password, email, fullname):
+            content = {"username": email, "password": password}
+            try:
+                secret = self.model.get_secret(label=MSM_CREDS_SECRET)
+                secret.set_content(content)
+            except ops.model.SecretNotFoundError:
+                secret = self.app.add_secret(
+                    content=content,
+                    label=MSM_CREDS_SECRET,
+                )
+            self.set_peer_data(self.app, MSM_CREDS_ID, secret.get_info().id)
+        else:
+            raise OperatorUserError("Unable to create operator user")
+
+    @property
+    def peers(self) -> Union[ops.Relation, None]:
+        """Fetch the peer relation."""
+        return self.model.get_relation(MSM_PEER_NAME)
+
+    def set_peer_data(
+        self, app_or_unit: Union[ops.Application, ops.Unit], key: str, data: Any
+    ) -> None:
+        """Put information into the peer data bucket."""
+        if not self.peers:
+            return
+        self.peers.data[app_or_unit][key] = json.dumps(data or {})
+
+    def get_peer_data(self, app_or_unit: Union[ops.Application, ops.Unit], key: str) -> Any:
+        """Retrieve information from the peer data bucket."""
+        if not self.peers:
+            return {}
+        data = self.peers.data[app_or_unit].get(key, "")
+        return json.loads(data) if data else {}
+
+    def _get_enrol_token(self) -> Optional[str]:
+        if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
+            creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
+            client = SiteManagerClient(
+                username=creds["username"],
+                password=creds["password"],
+                url=f"http://localhost:{SERVICE_PORT}",
+            )
+            return client.issue_enrol_token()
+        else:
+            return None
+
+    def _on_maas_enrol_joined(self, event: ops.RelationEvent) -> None:
+        logger.info(event)
+
+        if enrol_token := self._get_enrol_token():
+            self._enrol.publish_enrol_token(event.relation, enrol_token)
+        else:
+            event.defer()
+
+    def _on_maas_enrol_broken(self, event: ops.RelationEvent) -> None:
+        # TODO
+        logger.info(event)
 
 
 if __name__ == "__main__":  # pragma: nocover

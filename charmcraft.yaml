@@ -73,6 +73,8 @@ provides:
     interface: prometheus_scrape
   grafana-dashboard:
     interface: grafana_dashboard
+  maas-site-manager:
+    interface: site_manager_enrol
 
 config:
   options:

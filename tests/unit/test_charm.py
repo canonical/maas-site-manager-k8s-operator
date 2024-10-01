@@ -11,7 +11,7 @@ import unittest.mock
 import ops
 import ops.testing
 
-from charm import DatabaseNotReadyError, MsmOperatorCharm
+from charm import MSM_PEER_NAME, DatabaseNotReadyError, MsmOperatorCharm
 
 
 class TestCharm(unittest.TestCase):
@@ -334,3 +334,46 @@ class TestCharmActions(unittest.TestCase):
                     "email": "my_email@local.net",
                 },
             )
+
+
+class TestPeerRelation(unittest.TestCase):
+    def setUp(self):
+        self.harness = ops.testing.Harness(MsmOperatorCharm)
+        self.harness.set_model_name("maas-dev-model")
+        self.harness.add_network("10.0.0.10")
+        self.addCleanup(self.harness.cleanup)
+        # self.harness.begin()
+
+    def test_peer_relation_data(self):
+        self.harness.set_leader(True)
+        self.harness.begin()
+        app_name = self.harness.charm.app.name
+        rel_id = self.harness.add_relation(MSM_PEER_NAME, app_name)
+        self.harness.charm.set_peer_data(self.harness.charm.app, "test_key", "test_value")
+        self.assertEqual(
+            self.harness.get_relation_data(rel_id, app_name)["test_key"], '"test_value"'
+        )
+        self.assertEqual(
+            self.harness.charm.get_peer_data(self.harness.charm.app, "test_key"), "test_value"
+        )
+        self.harness.charm.set_peer_data(self.harness.charm.app, "test_key", None)
+        self.assertEqual(self.harness.get_relation_data(rel_id, app_name)["test_key"], "{}")
+
+    def test_on_msm_peer_changed(self):
+        self.harness.set_leader(True)
+        self.harness.begin()
+
+        mock_event = unittest.mock.Mock()
+
+        self.harness.charm._on_msm_peer_changed(mock_event)
+
+        # remote_app = "maas-region"
+        # rel_id = self.harness.add_relation(
+        #     enrol.DEFAULT_ENDPOINT_NAME,
+        #     remote_app,
+        #     unit_data={"unit": f"{remote_app}/0", "url": "some_url"},
+        # )
+        # data = self.harness.get_relation_data(rel_id, "maas-region")
+        # self.assertEqual(data["api_url"], "http://10.0.0.10:5240/MAAS")
+        # self.assertEqual(data["regions"], f'["{socket.getfqdn()}"]')
+        # self.assertIn("maas_secret_id", data)  # codespell:ignore
