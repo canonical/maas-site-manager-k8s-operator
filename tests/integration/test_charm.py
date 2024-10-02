@@ -5,6 +5,8 @@
 import asyncio
 import logging
 from pathlib import Path
+from minio import Minio
+import json
 
 import pytest
 import yaml
@@ -22,6 +24,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 
     Assert on the unit status before any relations/configurations take place.
     """
+    await ops_test.track_model("msm")
     # Build and deploy charm from local source folder
     charm = await ops_test.build_charm(".")
     resources = {
@@ -57,18 +60,54 @@ async def test_database_integration(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_charm_tracing_config(ops_test: OpsTest):
+    if ops_test.model is not None:
+        await ops_test.track_model("cos-lite")
+        await ops_test.model.deploy(
+            "tempo-coordinator-k8s", application_name="tempo", channel="latest/edge", trust=True
+        )
+        await ops_test.model.deploy(
+            "tempo-worker-k8s", application_name="tempo-worker", channel="latest/edge", trust=True
+        )
+        await ops_test.model.wait_for_idle(
+            apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
+        )
+        await ops_test.model.integrate("tempo", "tempo-worker")
+        minio_config = {"access-key":"accesskey", "secret-key":"mysoverysecretkey"}
+        await ops_test.model.deploy(
+            "minio", channel="latest/edge", trust=True, config=minio_config
+        )
+        await ops_test.model.wait_for_idle(
+            apps=["minio"], status="active", raise_on_blocked=True, timeout=1000
+        )
 
-    await ops_test.model.deploy(
-        "tempo-coordinator-k8s", application_name="tempo", channel="latest/edge", trust=True
-    )
-    await ops_test.model.deploy(
-        "tempo-worker-k8s", application_name="tempo-worker", channel="latest/edge", trust=True
-    )
-    await ops_test.model.wait_for_idle(
-        apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
-    )
-    await ops_test.model.integrate("tempo", "tempo-worker")
-    await ops_test.model.wait_for_idle(
-        apps=["tempo", "tempo-worker"], status="active", raise_on_blocked=False, timeout=1000
-    )
-    await ops_test.model.integrate(f"{APP_NAME}", "tempo")
+        await ops_test.model.deploy(
+            "s3-integrator", application_name="s3", channel="latest/edge", trust=True, config=minio_config
+        )
+        await ops_test.model.wait_for_idle(
+            apps=["s3"], status="blocked", raise_on_blocked=False, timeout=1000
+        )
+        await ops_test.juju("run s3/leader sync-s3-credentials access-key=accesskey secret-key=mysoverysecretkey")
+
+        # get the minio unit IP
+        (_, out, _) = await ops_test.juju("status minio --format json | jq .applications.minio.units")
+        address = json.loads(out)["minio/0"]["address"]
+        bucket_name = "tempo"
+
+        mc_client = Minio(
+            f"{address}:9000",
+            access_key="accesskey",
+            secret_key="mysoverysecretkey",
+            secure=False,
+        )
+        mc_client.make_bucket(bucket_name)
+        ops_test.model.name
+        
+        await ops_test.juju(f"config s3 endpoint=minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000 bucket=tempo")
+        await ops_test.model.integrate("tempo", "s3")
+        await ops_test.model.integrate("tempo:ingress", "traefik")
+        await ops_test.model.create_offer("traefik:ingress")
+        cos_lite_model_name = ops_test.model.name
+        await ops_test.track_model("msm")
+
+        await ops_test.model.integrate(f"{APP_NAME}", f"{cos_lite_model_name}.traefik")
+
