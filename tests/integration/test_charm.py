@@ -3,13 +3,13 @@
 # See LICENSE file for licensing details.
 
 import asyncio
+import json
 import logging
 from pathlib import Path
-from minio import Minio
-import json
 
 import pytest
 import yaml
+from minio import Minio
 from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def test_charm_tracing_config(ops_test: OpsTest):
             apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
         )
         await ops_test.model.integrate("tempo", "tempo-worker")
-        minio_config = {"access-key":"accesskey", "secret-key":"mysoverysecretkey"}
+        minio_config = {"access-key": "accesskey", "secret-key": "mysoverysecretkey"}
         await ops_test.model.deploy(
             "minio", channel="latest/edge", trust=True, config=minio_config
         )
@@ -81,15 +81,23 @@ async def test_charm_tracing_config(ops_test: OpsTest):
         )
 
         await ops_test.model.deploy(
-            "s3-integrator", application_name="s3", channel="latest/edge", trust=True, config=minio_config
+            "s3-integrator",
+            application_name="s3",
+            channel="latest/edge",
+            trust=True,
+            config=minio_config,
         )
         await ops_test.model.wait_for_idle(
             apps=["s3"], status="blocked", raise_on_blocked=False, timeout=1000
         )
-        await ops_test.juju("run s3/leader sync-s3-credentials access-key=accesskey secret-key=mysoverysecretkey")
+        await ops_test.juju(
+            "run s3/leader sync-s3-credentials access-key=accesskey secret-key=mysoverysecretkey"
+        )
 
         # get the minio unit IP
-        (_, out, _) = await ops_test.juju("status minio --format json | jq .applications.minio.units")
+        (_, out, _) = await ops_test.juju(
+            "status minio --format json | jq .applications.minio.units"
+        )
         address = json.loads(out)["minio/0"]["address"]
         bucket_name = "tempo"
 
@@ -101,8 +109,10 @@ async def test_charm_tracing_config(ops_test: OpsTest):
         )
         mc_client.make_bucket(bucket_name)
         ops_test.model.name
-        
-        await ops_test.juju(f"config s3 endpoint=minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000 bucket=tempo")
+
+        await ops_test.juju(
+            f"config s3 endpoint=minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000 bucket=tempo"
+        )
         await ops_test.model.integrate("tempo", "s3")
         await ops_test.model.integrate("tempo:ingress", "traefik")
         await ops_test.model.create_offer("traefik:ingress")
@@ -110,4 +120,3 @@ async def test_charm_tracing_config(ops_test: OpsTest):
         await ops_test.track_model("msm")
 
         await ops_test.model.integrate(f"{APP_NAME}", f"{cos_lite_model_name}.traefik")
-
