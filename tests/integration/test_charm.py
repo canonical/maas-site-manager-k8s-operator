@@ -53,3 +53,29 @@ async def test_database_integration(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000
     )
+
+
+@pytest.mark.abort_on_fail
+def test_charm_tracing_config(ops_test: OpsTest):
+
+    asyncio.gather(
+        ops_test.model.deploy(
+            "tempo-coordinator-k8s",
+            application_name="tempo",
+            channel="latest/edge",
+            trust=True
+        ),
+        ops_test.model.deploy(
+            "tempo-worker-k8s",
+            application_name="tempo-worker",
+            channel="latest/edge",
+            trust=True
+        ),
+        ops_test.model.wait_for_idle(
+            apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
+        ),
+        ops_test.model.integrate("tempo", "tempo-worker"),
+        ops_test.model.wait_for_idle(
+            apps=["tempo", "tempo-worker"], status="active", raise_on_blocked=False, timeout=1000
+        )
+    )
