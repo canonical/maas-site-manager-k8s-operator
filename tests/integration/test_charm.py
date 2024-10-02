@@ -56,26 +56,19 @@ async def test_database_integration(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-def test_charm_tracing_config(ops_test: OpsTest):
+async def test_charm_tracing_config(ops_test: OpsTest):
 
-    asyncio.gather(
-        ops_test.model.deploy(
-            "tempo-coordinator-k8s",
-            application_name="tempo",
-            channel="latest/edge",
-            trust=True
-        ),
-        ops_test.model.deploy(
-            "tempo-worker-k8s",
-            application_name="tempo-worker",
-            channel="latest/edge",
-            trust=True
-        ),
-        ops_test.model.wait_for_idle(
-            apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
-        ),
-        ops_test.model.integrate("tempo", "tempo-worker"),
-        ops_test.model.wait_for_idle(
-            apps=["tempo", "tempo-worker"], status="active", raise_on_blocked=False, timeout=1000
-        )
+    await ops_test.model.deploy(
+        "tempo-coordinator-k8s", application_name="tempo", channel="latest/edge", trust=True
     )
+    await ops_test.model.deploy(
+        "tempo-worker-k8s", application_name="tempo-worker", channel="latest/edge", trust=True
+    )
+    await ops_test.model.wait_for_idle(
+        apps=["tempo", "tempo-worker"], status="blocked", raise_on_blocked=False, timeout=1000
+    )
+    await ops_test.model.integrate("tempo", "tempo-worker")
+    await ops_test.model.wait_for_idle(
+        apps=["tempo", "tempo-worker"], status="active", raise_on_blocked=False, timeout=1000
+    )
+    await ops_test.model.integrate(f"{APP_NAME}", "tempo")
