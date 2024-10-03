@@ -41,7 +41,16 @@ class DatabaseNotReadyError(Exception):
     """Signals that the database cannot yet be used."""
 
 
-@trace_charm(tracing_endpoint="charm_tracing_endpoint")
+@trace_charm(
+    tracing_endpoint="charm_tracing_endpoint",
+    extra_types=[
+        DatabaseRequires,
+        GrafanaDashboardProvider,
+        LokiPushApiConsumer,
+        MetricsEndpointProvider,
+        IngressPerAppRequirer,
+    ],
+)
 class MsmOperatorCharm(ops.CharmBase):
     """Charm the service."""
 
