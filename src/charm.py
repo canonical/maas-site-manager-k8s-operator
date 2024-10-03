@@ -75,6 +75,8 @@ class MsmOperatorCharm(ops.CharmBase):
             self, relation_name="grafana-dashboard"
         )
         self._ingress = IngressPerAppRequirer(self, port=SERVICE_PORT, strip_prefix=True)
+        self.tracing = TracingEndpointRequirer(self, protocols=["otlp_http"])
+        self.charm_tracing_endpoint, _ = charm_tracing_config(self.tracing, None)
 
         self.framework.observe(
             self.on["site-manager"].pebble_ready, self._update_layer_and_restart
@@ -103,10 +105,6 @@ class MsmOperatorCharm(ops.CharmBase):
 
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
-
-        # tracing
-        self.tracing = TracingEndpointRequirer(self, protocols=["otlp_http"])
-        self.charm_tracing_endpoint, _ = charm_tracing_config(self.tracing, None)
 
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
