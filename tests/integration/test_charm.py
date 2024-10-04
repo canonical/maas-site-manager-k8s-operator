@@ -99,9 +99,9 @@ async def test_charm_tracing_config(ops_test: OpsTest):
         # get the minio unit IP
         minio_ip = await ops_test.model.applications["minio"].units[0].get_public_address()
 
-        (_, out, _) = subprocess.check_output("juju status minio --model cos-lite --format json")
+        out = subprocess.check_output("juju status minio --model cos-lite --format json")
         try:
-            address = json.loads(out)["minio/0"]["address"]
+            address = json.loads(out.decode())["minio/0"]["address"]
         except:
             raise RuntimeError("Failed")
         bucket_name = "tempo"
