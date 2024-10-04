@@ -108,8 +108,8 @@ async def test_charm_tracing_config(ops_test: OpsTest):
             secret_key="mysoverysecretkey",
             secure=False,
         )
-        mc_client.make_bucket(bucket_name)
-        ops_test.model.name
+        if not mc_client.bucket_exists(bucket_name):
+            mc_client.make_bucket(bucket_name)
 
         await ops_test.juju(
             f"config s3 endpoint=minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000 bucket=tempo"
