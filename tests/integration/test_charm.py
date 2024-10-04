@@ -85,7 +85,6 @@ async def test_charm_tracing_config(ops_test: OpsTest):
             application_name="s3",
             channel="latest/edge",
             trust=True,
-            config=minio_config,
         )
         await ops_test.model.wait_for_idle(
             apps=["s3"], status="blocked", raise_on_blocked=False, timeout=1000
