@@ -5,8 +5,8 @@
 import asyncio
 import json
 import logging
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import pytest
 import yaml
@@ -94,16 +94,12 @@ async def test_charm_tracing_config(ops_test: OpsTest):
             "run s3/leader sync-s3-credentials access-key=accesskey secret-key=mysoverysecretkey"
         )
 
-        ops_test.model.applications
-
         # get the minio unit IP
-        minio_ip = await ops_test.model.applications["minio"].units[0].get_public_address()
-
-        out = subprocess.check_output("juju status minio --model cos-lite --format json")
-        try:
-            address = json.loads(out.decode())["minio/0"]["address"]
-        except:
-            raise RuntimeError("Failed")
+        out = subprocess.check_output(
+            ["juju", "status", "minio", "--model", "cos-lite", "--format", "json"]
+        )
+        address = json.loads(out)["applications"]["minio"]["units"]["minio/0"]["address"]
+        # ["applications"]["minio"]["address"]
         bucket_name = "tempo"
 
         mc_client = Minio(
