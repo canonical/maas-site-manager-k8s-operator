@@ -63,6 +63,29 @@ async def test_database_integration(ops_test: OpsTest):
 async def test_charm_tracing_config(ops_test: OpsTest):
     if ops_test.model is not None:
         await ops_test.track_model("cos-lite")
+        subprocess.check_call(
+            [
+                "curl",
+                "-L",
+                "https://raw.githubusercontent.com/canonical/cos-lite-bundle/main/overlays/offers-overlay.yaml",
+                "-O",
+            ]
+        )
+        subprocess.check_call(
+            [
+                "curl",
+                "-L",
+                "https://raw.githubusercontent.com/canonical/cos-lite-bundle/main/overlays/storage-small-overlay.yaml",
+                "-O",
+            ]
+        )
+        await ops_test.model.deploy(
+            "cos-lite",
+            overlays=["./offers-overlay.yaml", "storage-small-overlay.yaml"],
+            trust=True,
+            channel="latest/edge",
+        )
+        await ops_test.model.create_offer("prometheus:metrics-endpoint", "prometheus-scrape")
         await ops_test.model.deploy(
             "tempo-coordinator-k8s", application_name="tempo", channel="latest/edge", trust=True
         )
