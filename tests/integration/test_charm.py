@@ -3,14 +3,11 @@
 # See LICENSE file for licensing details.
 
 import asyncio
-import json
 import logging
-import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
-from minio import Minio
 from pytest_operator.plugin import OpsTest
 
 logger = logging.getLogger(__name__)
