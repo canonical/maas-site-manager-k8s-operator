@@ -22,7 +22,6 @@ async def test_build_and_deploy(ops_test: OpsTest):
 
     Assert on the unit status before any relations/configurations take place.
     """
-    await ops_test.track_model("msm")
     # Build and deploy charm from local source folder
     charm = await ops_test.build_charm(".")
     resources = {
@@ -57,6 +56,7 @@ async def test_database_integration(ops_test: OpsTest):
 
 
 # TODO: uncomment once we can use self-hosted GH runners
+# depends on PR https://github.com/canonical/observability/pull/210
 # @pytest.mark.abort_on_fail
 # async def test_charm_tracing_config(ops_test: OpsTest):
 #     await ops_test.track_model("cos-lite")
