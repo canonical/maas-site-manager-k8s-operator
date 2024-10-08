@@ -75,7 +75,7 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config({"log-level": "debug"})
         # Get the plan now we've run PebbleReady
         updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
-        updated_env = updated_plan["services"]["msm"]["environment"]
+        updated_env = updated_plan["services"]["msm"]["environment"]  # type: ignore
 
         # Check the config change was effective
         self.assertEqual(updated_env["UVICORN_LOG_LEVEL"], "debug")
@@ -173,7 +173,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("site-manager")
 
         updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
-        self.assertEqual(updated_plan["log-targets"], expected_log_targets_created)
+        self.assertEqual(updated_plan["log-targets"], expected_log_targets_created)  # type: ignore
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
         # Simulate the database relation removed
@@ -205,6 +205,14 @@ class TestCharm(unittest.TestCase):
         # updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         # self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_BASE_PATH"], url)
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    def test_charm_level_tracing(self, mock_version):
+        mock_version.return_value = "1.0.0"
+        self.harness.add_relation("tracing", "tempo")
+        self.harness.container_pebble_ready("site-manager")
+        rel = self.harness.model.get_relation("tracing")
+        self.assertIsNotNone(rel)
 
 
 class TestCharmActions(unittest.TestCase):

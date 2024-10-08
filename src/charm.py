@@ -22,6 +22,8 @@ from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, D
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LokiPushApiConsumer
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.tempo_k8s.v1.charm_tracing import trace_charm
+from charms.tempo_k8s.v2.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import (
     IngressPerAppReadyEvent,
     IngressPerAppRequirer,
@@ -39,6 +41,16 @@ class DatabaseNotReadyError(Exception):
     """Signals that the database cannot yet be used."""
 
 
+@trace_charm(
+    tracing_endpoint="charm_tracing_endpoint",
+    extra_types=[
+        DatabaseRequires,
+        GrafanaDashboardProvider,
+        LokiPushApiConsumer,
+        MetricsEndpointProvider,
+        IngressPerAppRequirer,
+    ],
+)
 class MsmOperatorCharm(ops.CharmBase):
     """Charm the service."""
 
@@ -63,6 +75,8 @@ class MsmOperatorCharm(ops.CharmBase):
             self, relation_name="grafana-dashboard"
         )
         self._ingress = IngressPerAppRequirer(self, port=SERVICE_PORT, strip_prefix=True)
+        self.tracing = TracingEndpointRequirer(self, protocols=["otlp_http"])
+        self.charm_tracing_endpoint, _ = charm_tracing_config(self.tracing, None)
 
         self.framework.observe(
             self.on["site-manager"].pebble_ready, self._update_layer_and_restart
