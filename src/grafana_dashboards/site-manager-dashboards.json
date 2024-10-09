@@ -23,10 +23,7 @@
     "liveNow": false,
     "panels": [
         {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "PCC37F73E5F3A8461"
-            },
+            "datasource": "${prometheusds}",
             "description": "The total amount of seconds taken for DB queries per request, separated by endpoint",
             "fieldConfig": {
                 "defaults": {
@@ -101,10 +98,7 @@
             },
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "PCC37F73E5F3A8461"
-                    },
+                    "datasource": "${prometheusds}",
                     "editorMode": "builder",
                     "expr": "db_queries_duration_seconds_sum",
                     "instant": true,
@@ -118,10 +112,7 @@
             "type": "timeseries"
         },
         {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "PCC37F73E5F3A8461"
-            },
+            "datasource": "${prometheusds}",
             "description": "The number of database queries done for each request, separated by endpoint",
             "fieldConfig": {
                 "defaults": {
@@ -197,10 +188,7 @@
             },
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "PCC37F73E5F3A8461"
-                    },
+                    "datasource": "${prometheusds}",
                     "editorMode": "builder",
                     "exemplar": false,
                     "expr": "db_queries_total",
