@@ -36,10 +36,9 @@ parts:
     source-depth: 1
     source-type: git
     source-branch: msm-dashboard
-    stage:
-      - msm/msm_stats.json
+    source-subdir: msm
     organize:
-      msm/msm_stats.json: src/grafana_dashboards/msm_stats.json
+      msm_stats.json: src/grafana_dashboards/msm_stats.json
     prime:
       - src/grafana_dashboards/msm_stats.json
 
