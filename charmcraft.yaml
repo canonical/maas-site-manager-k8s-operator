@@ -35,7 +35,6 @@ parts:
     source: https://github.com/canonical/maas-grafana-dashboards
     source-depth: 1
     source-type: git
-    source-branch: msm-dashboard
     source-subdir: msm
     organize:
       msm_stats.json: src/grafana_dashboards/msm_stats.json
