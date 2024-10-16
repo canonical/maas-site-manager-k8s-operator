@@ -1,0 +1,389 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": "${lokids}",
+            "gridPos": {
+                "h": 12,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 8,
+            "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": true,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Ascending",
+                "wrapLogMessage": true
+            },
+            "targets": [
+                {
+                    "datasource": "${lokids}",
+                    "editorMode": "builder",
+                    "expr": "{pebble_service=\"msm\"} |= ``",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "title": "MAAS Site Manager API Logs",
+            "type": "logs"
+        },
+        {
+            "datasource": "${prometheusds}",
+            "description": "5 minute running average of time spent on database queries per request handler, method",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "s"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "/((raw) .*)|(.*none)/"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": true,
+                                    "tooltip": true,
+                                    "viz": true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 14,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "sum by(handler, method) (rate(db_queries_duration_seconds_sum[5m]))",
+                    "legendFormat": "raw {{handler}} ({{method}})",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "sum by(handler, method) (rate(db_queries_duration_seconds_count[5m]))",
+                    "hide": false,
+                    "legendFormat": "raw {{handler}} count ({{method}})",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "name": "Expression",
+                        "type": "__expr__",
+                        "uid": "__expr__"
+                    },
+                    "expression": "$A / $B",
+                    "hide": false,
+                    "refId": "time",
+                    "type": "math"
+                }
+            ],
+            "title": "DB Query Time per endpoint, method (5 min running avg)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "${prometheusds}",
+            "description": "The number of database queries done per second by each handler/method",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "q/s"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 14,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "id": 10,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "sum by(handler, method) (rate(db_queries_total{handler!=\"none\"}[5m]))",
+                    "legendFormat": "{{handler}} ({{method}})",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Database Queries per Second",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "${prometheusds}",
+            "description": "Five-minute running average of the amount of time spent on database queries for x% of requests",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "fillOpacity": 70,
+                        "lineWidth": 1
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "percentage",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 75
+                            },
+                            {
+                                "color": "orange",
+                                "value": 85
+                            },
+                            {
+                                "color": "red",
+                                "value": 95
+                            }
+                        ]
+                    },
+                    "unit": "s"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 15,
+                "w": 24,
+                "x": 0,
+                "y": 26
+            },
+            "id": 9,
+            "interval": "2.5m",
+            "options": {
+                "colWidth": 0.9,
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "rowHeight": 0.9,
+                "showValue": "auto",
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.3",
+            "targets": [
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "histogram_quantile(0.99, sum by(le) (rate(db_queries_duration_seconds_bucket{handler!=\"none\"}[5m])))",
+                    "format": "time_series",
+                    "hide": false,
+                    "legendFormat": "99th percentile",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "histogram_quantile(0.95, sum by(le) (rate(db_queries_duration_seconds_bucket{handler!=\"none\"}[5m])))",
+                    "format": "time_series",
+                    "hide": false,
+                    "legendFormat": "95th percentile",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "histogram_quantile(0.9, sum by(le) (rate(db_queries_duration_seconds_bucket{handler!=\"none\"}[5m])))",
+                    "format": "time_series",
+                    "hide": false,
+                    "legendFormat": "90th percentile",
+                    "range": true,
+                    "refId": "C"
+                },
+                {
+                    "datasource": "${prometheusds}",
+                    "editorMode": "builder",
+                    "expr": "histogram_quantile(0.75, sum by(le) (rate(db_queries_duration_seconds_bucket{handler!=\"none\"}[5m])))",
+                    "format": "time_series",
+                    "hide": false,
+                    "legendFormat": "75th percentile",
+                    "range": true,
+                    "refId": "D"
+                }
+            ],
+            "title": "Percentile of Time Spent on DB Queries (5 min average)",
+            "type": "status-history"
+        }
+    ],
+    "refresh": "",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "MAAS Site Manager Dashboard",
+    "uid": "fc1a4d5d-dfa5-41f9-ab2b-34b5ecaf735d",
+    "version": 14,
+    "weekStart": ""
+}
