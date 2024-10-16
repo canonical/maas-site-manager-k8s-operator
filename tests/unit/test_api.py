@@ -1,7 +1,7 @@
 import unittest
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, patch
 
-from api import SiteManagerClient
+from api import AuthError, SiteManagerClient
 
 
 class TestSiteManagerClient(unittest.TestCase):
@@ -11,31 +11,41 @@ class TestSiteManagerClient(unittest.TestCase):
 
     @patch("charm.requests.post")
     def test_login(self, mock_post):
-        result = Mock()
-        result.json.return_value = {"access_token": "token"}
+        result = result = Mock(
+            **{
+                "json.return_value": {"access_token": "token"},
+                "ok": True,
+                "status_code": 200,
+            }
+        )
         mock_post.return_value = result
-        mock_post.ok = PropertyMock(return_value=True)
 
-        assert self.client._login() == "token"
+        assert self.client._login() == {"Authorization": "Bearer token"}
 
     @patch("charm.requests.post")
     def test_login_failed(self, mock_post):
-        result = Mock()
-        result.json.return_value = {"error": {}}
+        result = Mock(
+            **{
+                "json.return_value": {"error": {}},
+                "ok": False,
+            }
+        )
         mock_post.return_value = result
-        mock_post.ok = PropertyMock(return_value=False)
-
-        assert self.client._login() is None
+        with self.assertRaises(AuthError):
+            self.client._login()
 
     @patch("charm.SiteManagerClient._login")
     @patch("charm.requests.post")
     def test_issue_enrol_token(self, mock_tokens, mock_login):
         mock_login.return_value = "token"
 
-        result = Mock()
-        result.json.return_value = {"items": [{"value": "enrol_token"}]}
+        result = Mock(
+            **{
+                "json.return_value": {"items": [{"value": "enrol_token"}]},
+                "ok": True,
+            }
+        )
         mock_tokens.return_value = result
-        mock_tokens.ok = PropertyMock(return_value=False)
 
         token = self.client.issue_enrol_token()
 

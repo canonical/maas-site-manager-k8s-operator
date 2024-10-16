@@ -59,7 +59,7 @@ class EnrolRequirerUnitData(EnrolDatabag):
     """The schema for the Requirer side of this relation."""
 
     unit: str
-    url: str
+    uuid: str
 
 
 @dataclasses.dataclass
@@ -190,11 +190,11 @@ class EnrolRequirer(ops.Object):
         except TypeError:
             return False
 
-    def request_enrol(self, maas_url: str) -> None:
+    def request_enrol(self, cluster_uuid: str) -> None:
         """Request enrolment."""
         databag_model = EnrolRequirerUnitData(
             unit=self._charm.unit.name,
-            url=maas_url,
+            uuid=cluster_uuid,
         )
         if relation := self._relation:
             unit_databag = relation.data[self.model.unit]

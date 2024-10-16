@@ -1,6 +1,7 @@
 """MAAS Site Manager API client."""
 
 import logging
+from typing import Dict
 
 import requests
 
@@ -23,7 +24,7 @@ class SiteManagerClient:
         self._password = password
         self._url = url
 
-    def _login(self) -> str:
+    def _login(self) -> Dict[str, str]:
         """Authenticate client."""
         resp = requests.post(
             f"{self._url}/api/v1/login",
@@ -34,7 +35,8 @@ class SiteManagerClient:
         )
         if not resp.ok:
             raise AuthError(f"Failed to authenticate: {resp.text}")
-        return resp.json().get("access_token")
+        jwt = resp.json().get("access_token")
+        return {"Authorization": f"Bearer {jwt}"}
 
     def issue_enrol_token(self) -> str:
         """Issue an enrolment token.
@@ -45,8 +47,7 @@ class SiteManagerClient:
         Returns:
             str: encoded JWT enrolment token
         """
-        jwt = self._login()
-        headers = {"Authorization": f"Bearer {jwt}"}
+        headers = self._login()
 
         resp = requests.post(
             f"{self._url}/api/v1/tokens",
