@@ -30,6 +30,17 @@ parts:
   charm:
     build-packages: [cargo, rustc]
 
+  grafana-dashboards:
+    plugin: dump
+    source: https://github.com/wyattrees/maas-grafana-dashboards
+    source-depth: 1
+    source-type: git
+    source-branch: msm-dashboard
+    organize:
+      "msm/*": src/grafana_dashboards/
+    prime:
+      - src/grafana_dashboards/msm_stats.json
+
 assumes:
   - juju >= 3.3
   - k8s-api
