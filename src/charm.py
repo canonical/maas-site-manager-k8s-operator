@@ -72,7 +72,7 @@ class MsmOperatorCharm(ops.CharmBase):
         )
         self._loki_consumer = LokiPushApiConsumer(self, relation_name="logging-consumer")
         self._grafana_dashboards = GrafanaDashboardProvider(
-            self, relation_name="grafana-dashboard"
+            self, relation_name="grafana-dashboard", dashboards_path="src/grafana_dashboards"
         )
         self._ingress = IngressPerAppRequirer(self, port=SERVICE_PORT, strip_prefix=True)
         self.tracing = TracingEndpointRequirer(self, protocols=["otlp_http"])
