@@ -1,3 +1,4 @@
+.env
 venv/
 build/
 *.charm
@@ -8,3 +9,5 @@ __pycache__/
 .idea
 .vscode/
 **.egg-info
+
+.charm_tracing_buffer.raw
