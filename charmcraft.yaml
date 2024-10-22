@@ -39,7 +39,7 @@ parts:
     organize:
       "*": src/grafana_dashboards/
     prime:
-      - src/grafana_dashboards/msm_stats.json
+      - src/grafana_dashboards/*
 
 assumes:
   - juju >= 3.3
