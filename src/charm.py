@@ -440,6 +440,8 @@ class MsmOperatorCharm(ops.CharmBase):
 
     def _on_maas_enrol_joined(self, event: ops.RelationEvent) -> None:
         logger.info(event)
+        if not self.unit.is_leader():
+            return
 
         if enrol_token := self._get_enrol_token():
             self._enrol.publish_enrol_token(event.relation, enrol_token)
@@ -447,8 +449,19 @@ class MsmOperatorCharm(ops.CharmBase):
             event.defer()
 
     def _on_maas_enrol_broken(self, event: ops.RelationEvent) -> None:
-        # TODO
         logger.info(event)
+        if not self.unit.is_leader():
+            return
+        if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
+            creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
+            client = SiteManagerClient(
+                username=creds["username"],
+                password=creds["password"],
+                url=f"http://localhost:{SERVICE_PORT}",
+            )
+            return client.remove_site(event.relation.data[event.relation.app]["uuid"])
+        else:
+            event.defer()
 
 
 if __name__ == "__main__":  # pragma: nocover

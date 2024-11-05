@@ -1,6 +1,6 @@
 """MAAS Site Manager operator library.
 
-Allows MAAS clusters to enroll with Site Manager
+Allows MAAS clusters to enrol with Site Manager
 """
 
 import dataclasses
@@ -55,10 +55,9 @@ class EnrolDatabag:
 
 
 @dataclasses.dataclass
-class EnrolRequirerUnitData(EnrolDatabag):
+class EnrolRequirerAppData(EnrolDatabag):
     """The schema for the Requirer side of this relation."""
 
-    unit: str
     uuid: str
 
 
@@ -152,7 +151,7 @@ class EnrolRequirer(ops.Object):
         return relation if relation and relation.app and relation.data else None
 
     def _on_relation_changed(self, event: ops.RelationChangedEvent) -> None:
-        if self._relation:
+        if self._charm.unit.is_leader() and self._relation:
             if data := self.get_enrol_data():
                 token = data.get_token(self.model)
                 self.on.token_issued.emit(token)
@@ -182,18 +181,18 @@ class EnrolRequirer(ops.Object):
         relation = self._relation
         if not relation:
             return False
-
-        unit_data = relation.data[self._charm.unit]
+        app_data = relation.data[self._charm.app]
         try:
-            EnrolRequirerUnitData.load(unit_data)  # type: ignore
+            EnrolRequirerAppData.load(app_data)  # type: ignore
             return True
         except TypeError:
             return False
 
     def request_enrol(self, cluster_uuid: str) -> None:
         """Request enrolment."""
-        databag_model = EnrolRequirerUnitData(
-            unit=self._charm.unit.name,
+        if not self._charm.unit.is_leader():
+            return
+        databag_model = EnrolRequirerAppData(
             uuid=cluster_uuid,
         )
         if relation := self._relation:
