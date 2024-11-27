@@ -113,7 +113,7 @@ class SiteManagerClient:
             )
         elif len(sites_with_cluster_id) == 1:
             resp = requests.delete(
-                f"{self._url}/api/v1/sites/{sites[0]['id']}",
+                f"{self._url}/api/v1/sites/{sites_with_cluster_id[0]}",
                 headers=headers,
             )
             if not resp.ok:
