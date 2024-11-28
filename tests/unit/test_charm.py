@@ -7,9 +7,11 @@ import json
 import os
 import unittest
 import unittest.mock
+import uuid
 
 import ops
 import ops.testing
+from charms.maas_site_manager_k8s.v0 import enrol
 
 from charm import MSM_PEER_NAME, DatabaseNotReadyError, MsmOperatorCharm
 
@@ -357,3 +359,29 @@ class TestPeerRelation(unittest.TestCase):
         )
         self.harness.charm.set_peer_data(self.harness.charm.app, "test_key", None)
         self.assertEqual(self.harness.get_relation_data(rel_id, app_name)["test_key"], "{}")
+
+
+class TestEnrolment(unittest.TestCase):
+
+    def setUp(self):
+        self.harness = ops.testing.Harness(MsmOperatorCharm)
+        self.harness.set_model_name("msm-dev-model")
+        self.harness.add_network("10.0.0.10")
+        self.addCleanup(self.harness.cleanup)
+        self.maas_id = str(uuid.uuid4())
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._get_enrol_token")
+    def test_enrol(self, mock_enrol):
+        mock_enrol.return_value = "my-token"
+        self.harness.set_leader(True)
+        self.harness.begin()
+        remote_app = "maas-region"
+        rel_id = self.harness.add_relation(
+            enrol.DEFAULT_ENDPOINT_NAME,
+            remote_app,
+            unit_data={"unit": f"{remote_app}/0", "uuid": self.maas_id},
+        )
+        data = self.harness.get_relation_data(rel_id, self.harness.charm.app)
+        self.assertIn("token_id", data)  # codespell:ignore
+        secret = self.harness.model.get_secret(id=data["token_id"]).get_content()
+        assert secret["enrol-token"] == "my-token"

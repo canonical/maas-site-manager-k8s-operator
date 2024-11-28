@@ -442,8 +442,8 @@ class MsmOperatorCharm(ops.CharmBase):
         logger.info(event)
         if not self.unit.is_leader():
             return
-
         if enrol_token := self._get_enrol_token():
+            logger.info(f"{enrol_token=}")
             self._enrol.publish_enrol_token(event.relation, enrol_token)
         else:
             event.defer()
