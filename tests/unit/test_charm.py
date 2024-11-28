@@ -13,7 +13,13 @@ import ops
 import ops.testing
 from charms.maas_site_manager_k8s.v0 import enrol
 
-from charm import MSM_PEER_NAME, DatabaseNotReadyError, MsmOperatorCharm
+from charm import (
+    MSM_CREDS_ID,
+    MSM_PEER_NAME,
+    PASSWD_CHOICES,
+    DatabaseNotReadyError,
+    MsmOperatorCharm,
+)
 
 
 class TestCharm(unittest.TestCase):
@@ -339,26 +345,74 @@ class TestCharmActions(unittest.TestCase):
 
 
 class TestPeerRelation(unittest.TestCase):
+
+    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("maas-dev-model")
         self.harness.add_network("10.0.0.10")
         self.addCleanup(self.harness.cleanup)
 
+    def _ready(self):
+        self.harness.container_pebble_ready("site-manager")
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+
     def test_peer_relation_data(self):
         self.harness.set_leader(True)
         self.harness.begin()
-        app_name = self.harness.charm.app.name
-        rel_id = self.harness.add_relation(MSM_PEER_NAME, app_name)
-        self.harness.charm.set_peer_data(self.harness.charm.app, "test_key", "test_value")
+        app = self.harness.charm.app
+        rel_id = self.harness.add_relation(MSM_PEER_NAME, app.name)
+        self.harness.charm.set_peer_data(app, "test_key", "test_value")
         self.assertEqual(
-            self.harness.get_relation_data(rel_id, app_name)["test_key"], '"test_value"'
+            self.harness.get_relation_data(rel_id, app.name)["test_key"], '"test_value"'
         )
-        self.assertEqual(
-            self.harness.charm.get_peer_data(self.harness.charm.app, "test_key"), "test_value"
+        self.assertEqual(self.harness.charm.get_peer_data(app, "test_key"), "test_value")
+        self.harness.charm.set_peer_data(app, "test_key", None)
+        self.assertEqual(self.harness.get_relation_data(rel_id, app)["test_key"], "{}")
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    @unittest.mock.patch("charm.secrets.choice")
+    def test_create_operator(self, mock_choice, mock_version):
+        mock_choice.side_effect = PASSWD_CHOICES[:16]
+        mock_version.return_value = "1.0.0"
+
+        self.harness.set_leader(True)
+        self.harness.begin()
+        app = self.harness.charm.app
+
+        def create_op_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            self.assertEqual(
+                args.command,
+                [
+                    "msm-admin",
+                    "create-user",
+                    "--admin",
+                    f"{app.name}-operator",
+                    f"no-reply@{app.name}.charm",
+                    PASSWD_CHOICES[:16],
+                    f"{app.name} charm operator",
+                ],
+            )
+            return ops.testing.ExecResult(exit_code=0)
+
+        self.harness.handle_exec("site-manager", ["msm-admin"], handler=create_op_handler)
+        self.harness.add_relation(MSM_PEER_NAME, app.name)
+        self._ready()
+        oper_id = self.harness.charm.get_peer_data(app, MSM_CREDS_ID)
+        self.assertIsNotNone(oper_id)
+        secret = self.harness.model.get_secret(id=oper_id).get_content()
+        self.assertDictEqual(
+            secret, {"password": PASSWD_CHOICES[:16], "username": f"no-reply@{app.name}.charm"}
         )
-        self.harness.charm.set_peer_data(self.harness.charm.app, "test_key", None)
-        self.assertEqual(self.harness.get_relation_data(rel_id, app_name)["test_key"], "{}")
 
 
 class TestEnrolment(unittest.TestCase):
@@ -384,4 +438,4 @@ class TestEnrolment(unittest.TestCase):
         data = self.harness.get_relation_data(rel_id, self.harness.charm.app)
         self.assertIn("token_id", data)  # codespell:ignore
         secret = self.harness.model.get_secret(id=data["token_id"]).get_content()
-        assert secret["enrol-token"] == "my-token"
+        self.assertEqual(secret["enrol-token"], "my-token")
