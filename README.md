@@ -17,7 +17,7 @@ More information: <https://charmhub.io/maas-site-manager-k8s>
 
 <!-- If your charm is documented somewhere else other than Charmhub, provide a link separately. -->
 
-- [Read more](https://example.com)
+- [Read more](https://maas.io)
 
 - [Contributing](CONTRIBUTING.md) <!-- or link to other contribution documentation -->
 
