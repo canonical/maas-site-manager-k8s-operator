@@ -55,6 +55,10 @@ resources:
     description: MAAS Site Manager OCI image
     upstream-source: ghcr.io/canonical/maas-site-manager:0.1
 
+peers:
+  site-manager-cluster:
+    interface: site_manager_peers
+
 requires:
   database:
     interface: postgresql_client
@@ -73,6 +77,8 @@ provides:
     interface: prometheus_scrape
   grafana-dashboard:
     interface: grafana_dashboard
+  maas-site-manager:
+    interface: site_manager_enrol
 
 config:
   options:
