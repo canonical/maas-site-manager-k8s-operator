@@ -233,7 +233,6 @@ class TestCharm(unittest.TestCase):
 
 
 class TestCharmActions(unittest.TestCase):
-
     @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
@@ -345,7 +344,6 @@ class TestCharmActions(unittest.TestCase):
 
 
 class TestPeerRelation(unittest.TestCase):
-
     @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
@@ -416,7 +414,6 @@ class TestPeerRelation(unittest.TestCase):
 
 
 class TestEnrolment(unittest.TestCase):
-
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("msm-dev-model")

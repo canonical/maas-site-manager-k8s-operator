@@ -6,7 +6,6 @@ from api import AuthError, SiteManagerClient
 
 
 class TestSiteManagerClient(unittest.TestCase):
-
     def setUp(self):
         self.client = SiteManagerClient("username", "password", "http://localhost")
 
