@@ -1,12 +1,7 @@
-# Testing tools configuration
-
-[tool.black]
-line-length = 99
-target-version = [ "py38" ]
-
 # Linting tools configuration
 
 [tool.ruff]
+target-version = "py38"
 line-length = 99
 extend-exclude = [
   "*.egg_info",
@@ -18,8 +13,12 @@ lint.select = [
   "D",
   "E",
   "F",
+  "F401",
+  "I",
   "I001",
   "N",
+  "RUF",
+  "UP",
   "W",
 ]
 lint.ignore = [
