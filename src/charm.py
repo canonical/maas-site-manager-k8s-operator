@@ -33,6 +33,7 @@ from charms.traefik_k8s.v2.ingress import (
     IngressPerAppRequirer,
     IngressPerAppRevokedEvent,
 )
+from requests.exceptions import RequestException
 
 from api import SiteManagerClient
 
@@ -165,8 +166,9 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
-        # add workload version in juju status
-        self.unit.set_workload_version(self.version)
+        if version := self.version:
+            # add workload version in juju status
+            self.unit.set_workload_version(version)
 
         if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
             try:
@@ -268,11 +270,10 @@ class MsmOperatorCharm(ops.CharmBase):
         if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
             try:
                 return self._request_version()
-            # Catching Exception is not ideal, but we don't care much for the error here, and just
-            # default to setting a blank version since there isn't much the admin can do!
-            except Exception as e:
+            except RequestException as e:
                 logger.warning("unable to get version from API: %s", str(e))
-                logger.exception(e)
+            except Exception:
+                logger.exception("unable to get version from API")
         return ""
 
     @property
