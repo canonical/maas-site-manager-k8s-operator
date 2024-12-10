@@ -90,12 +90,6 @@ config:
       default: "info"
       type: string
 
-checks:
-  http-test:
-        override: replace
-        http:
-            url: http://localhost:8000/version
-
 actions:
   create-admin:
     description: Create an administrator account.
