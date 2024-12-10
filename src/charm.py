@@ -173,21 +173,28 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
-        if version := self.version:
-            # add workload version in juju status
-            self.unit.set_workload_version(version)
+        if self.container.get_service("msm").current == ServiceStatus.ACTIVE:
+            if version := self.version:
+                # add workload version in juju status
+                self.unit.set_workload_version(version)
 
-        if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
-            try:
-                self._create_operator_user()
-            except OperatorUserError as ex:
-                logger.error(ex)
-                self.unit.status = ops.BlockedStatus("Failed to create operator user")
-                return
-
-        self.unit.status = ops.ActiveStatus()
+            if (
+                self.unit.is_leader()
+                and self.peers
+                and not self.get_peer_data(self.app, MSM_CREDS_ID)
+            ):
+                try:
+                    self._create_operator_user()
+                except OperatorUserError as ex:
+                    logger.error(ex)
+                    self.unit.status = ops.BlockedStatus("Failed to create operator user")
+                    return
+            self.unit.status = ops.WaitingStatus("Waiting for msm service to become availiable")
+        else:
+            self.unit.status = ops.ActiveStatus()
 
     def _on_pebble_check_failed(self, event: ops.PebbleCheckFailedEvent) -> None:
+        logger.info("Health check failed for msm service")
         if (
             event.info.name == "http-test"
             and self.container.get_service("msm").current == ServiceStatus.ERROR
@@ -195,6 +202,7 @@ class MsmOperatorCharm(ops.CharmBase):
             self.unit.status = ops.BlockedStatus("msm service is in an error state")
 
     def _on_pebble_check_recovered(self, event: ops.PebbleCheckRecoveredEvent) -> None:
+        logger.info("msm service recovered")
         if version := self.version:
             # add workload version in juju status
             self.unit.set_workload_version(version)
