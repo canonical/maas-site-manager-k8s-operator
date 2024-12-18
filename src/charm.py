@@ -192,7 +192,7 @@ class MsmOperatorCharm(ops.CharmBase):
                     logger.info(f"Failed to create admin, retrying in {wait}s")
                     time.sleep(wait)
 
-        self.unit.status = ops.ErrorStatus(
+        self.unit.status = ops.BlockedStatus(
             "Timed out waiting for MAAS Site Manager API to be ready."
         )
 
