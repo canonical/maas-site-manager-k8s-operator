@@ -136,6 +136,16 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
+        # custom notice
+        self.framework.observe(self.on["site-manager"].pebble_custom_notice, self._on_pebble_custom_notice)
+
+
+    def _on_pebble_custom_notice(self, event):
+        if event.notice.key == "localhost/msm-api-up":
+            logger.info("Got our custom notice")
+        else:
+            logger.info(f"Got custom notice {event.notice.key}")
+
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
 
