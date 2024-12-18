@@ -136,16 +136,6 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
-        # custom notice
-        self.framework.observe(self.on["site-manager"].pebble_custom_notice, self._on_pebble_custom_notice)
-
-
-    def _on_pebble_custom_notice(self, event):
-        if event.notice.key == "localhost/msm-api-up":
-            logger.info("Got our custom notice")
-        else:
-            logger.info(f"Got custom notice {event.notice.key}")
-
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
 
@@ -202,14 +192,6 @@ class MsmOperatorCharm(ops.CharmBase):
             self.unit.status = ops.WaitingStatus("Waiting for msm service to become availiable")
         else:
             self.unit.status = ops.ActiveStatus()
-
-    def _on_pebble_check_failed(self, event: ops.PebbleCheckFailedEvent) -> None:
-        logger.info("Health check failed for msm service")
-        if (
-            event.info.name == "http-test"
-            and self.container.get_service("msm").current == ServiceStatus.ERROR
-        ):
-            self.unit.status = ops.BlockedStatus("msm service is in an error state")
 
     def _on_pebble_check_recovered(self, event: ops.PebbleCheckRecoveredEvent) -> None:
         logger.info("msm service recovered")
