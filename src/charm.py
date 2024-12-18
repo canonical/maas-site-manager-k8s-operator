@@ -16,6 +16,7 @@ import json
 import logging
 import secrets
 import string
+import time
 from typing import Any, Dict, Optional, Union, cast
 from urllib.parse import urlparse
 
@@ -166,19 +167,34 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
-        if version := self.version:
-            # add workload version in juju status
-            self.unit.set_workload_version(version)
+        start = time.time()
+        timeout = 10
+        wait = 1
+        while time.time() < start + timeout:
+            if version := self.version:
+                # add workload version in juju status
+                self.unit.set_workload_version(version)
+            else:
+                logger.info(f"Failed to get version, retying in {wait}s")
+                time.sleep(wait)
+                continue
 
-        if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
-            try:
-                self._create_operator_user()
-            except OperatorUserError as ex:
-                logger.error(ex)
-                self.unit.status = ops.BlockedStatus("Failed to create operator user")
-                return
+            if (
+                self.unit.is_leader()
+                and self.peers
+                and not self.get_peer_data(self.app, MSM_CREDS_ID)
+            ):
+                try:
+                    self._create_operator_user()
+                except OperatorUserError as ex:
+                    logger.error(ex)
+                    logger.info
+                    self.unit.status = ops.BlockedStatus("Failed to create operator user")
+                    return
 
-        self.unit.status = ops.ActiveStatus()
+        self.unit.status = ops.ErrorStatus(
+            "Timed out waiting for MAAS Site Manager API to be ready."
+        )
 
     def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
         """Event is fired when Postgres database is created."""
