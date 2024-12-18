@@ -167,9 +167,10 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
-        start = time.time()
+        self.unit.status = ops.WaitingStatus("Waiting for MAAS Site Manager API to start")
         timeout = 10
         wait = 1
+        start = time.time()
         while time.time() < start + timeout:
             if version := self.version:
                 # add workload version in juju status
@@ -188,9 +189,8 @@ class MsmOperatorCharm(ops.CharmBase):
                     self._create_operator_user()
                 except OperatorUserError as ex:
                     logger.error(ex)
-                    logger.info
-                    self.unit.status = ops.BlockedStatus("Failed to create operator user")
-                    return
+                    logger.info(f"Failed to create admin, retrying in {wait}s")
+                    time.sleep(wait)
 
         self.unit.status = ops.ErrorStatus(
             "Timed out waiting for MAAS Site Manager API to be ready."
