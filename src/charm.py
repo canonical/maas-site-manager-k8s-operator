@@ -100,9 +100,6 @@ class MsmOperatorCharm(ops.CharmBase):
         )
         self.framework.observe(self.on.config_changed, self._update_layer_and_restart)
         self.framework.observe(
-            self.on["site-manager"].pebble_check_failed, self._on_pebble_check_failed
-        )
-        self.framework.observe(
             self.on["site-manager"].pebble_check_recovered, self._on_pebble_check_recovered
         )
 
