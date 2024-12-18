@@ -186,9 +186,9 @@ class MsmOperatorCharm(ops.CharmBase):
                     logger.error(ex)
                     self.unit.status = ops.BlockedStatus("Failed to create operator user")
                     return
-            self.unit.status = ops.WaitingStatus("Waiting for msm service to become availiable")
-        else:
             self.unit.status = ops.ActiveStatus()
+        else:
+            self.unit.status = ops.WaitingStatus("Waiting for msm service to become available")
 
     def _on_pebble_check_recovered(self, event: ops.PebbleCheckRecoveredEvent) -> None:
         logger.info("msm service recovered")
