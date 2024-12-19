@@ -33,6 +33,7 @@ from charms.traefik_k8s.v2.ingress import (
     IngressPerAppRequirer,
     IngressPerAppRevokedEvent,
 )
+from ops.pebble import CheckStatus
 from requests.exceptions import RequestException
 
 from api import SiteManagerClient
@@ -98,6 +99,9 @@ class MsmOperatorCharm(ops.CharmBase):
             self.on["site-manager"].pebble_ready, self._update_layer_and_restart
         )
         self.framework.observe(self.on.config_changed, self._update_layer_and_restart)
+        self.framework.observe(
+            self.on["site-manager"].pebble_check_recovered, self._on_pebble_check_recovered
+        )
 
         # Enrolment service
         self._enrol = enrol.EnrolProvider(self)
@@ -166,6 +170,28 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
+        if self.container.get_check("http-test").status == CheckStatus.UP:
+            if version := self.version:
+                # add workload version in juju status
+                self.unit.set_workload_version(version)
+
+            if (
+                self.unit.is_leader()
+                and self.peers
+                and not self.get_peer_data(self.app, MSM_CREDS_ID)
+            ):
+                try:
+                    self._create_operator_user()
+                except OperatorUserError as ex:
+                    logger.error(ex)
+                    self.unit.status = ops.BlockedStatus("Failed to create operator user")
+                    return
+            self.unit.status = ops.ActiveStatus()
+        else:
+            self.unit.status = ops.WaitingStatus("Waiting for msm service to become available")
+
+    def _on_pebble_check_recovered(self, event: ops.PebbleCheckRecoveredEvent) -> None:
+        logger.info("msm service recovered")
         if version := self.version:
             # add workload version in juju status
             self.unit.set_workload_version(version)

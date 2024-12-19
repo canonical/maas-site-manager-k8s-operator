@@ -12,6 +12,7 @@ import uuid
 import ops
 import ops.testing
 from charms.maas_site_manager_k8s.v0 import enrol
+from ops.pebble import CheckInfo, CheckLevel, CheckStatus
 
 from charm import (
     MSM_CREDS_ID,
@@ -31,7 +32,9 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.requests.get", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
-    def test_pebble_layer(self, mock_fetch_postgres_relation_data, mock_get):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_pebble_layer(self, mock_get_check, mock_fetch_postgres_relation_data, mock_get):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         # Expected plan after Pebble ready with default config
         expected_plan = {
             "services": {
@@ -71,9 +74,11 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
+    @unittest.mock.patch("ops.model.Container.get_check")
     def test_config_changed_valid_can_connect(
-        self, mock_fetch_postgres_relation_data, mock_version
+        self, mock_get_check, mock_fetch_postgres_relation_data, mock_version
     ):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_postgres_relation_data.return_value = {}
         mock_version.return_value = "1.0.0"
 
@@ -121,8 +126,10 @@ class TestCharm(unittest.TestCase):
         )
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
-    def test_database_created_and_removed(self, mock_version):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_database_created_and_removed(self, mock_get_check, mock_version):
         mock_version.return_value = "1.0.0"
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
 
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")
@@ -148,9 +155,11 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
+    @unittest.mock.patch("ops.model.Container.get_check")
     def test_loki_push_api_endpoint_created_updated_and_removed(
-        self, mock_fetch_postgres_relation_data, mock_version
+        self, mock_get_check, mock_fetch_postgres_relation_data, mock_version
     ):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         expected_log_targets_created = {
             "loki-0": {
                 "override": "replace",
@@ -197,8 +206,12 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
-    def test_ingress_ready_and_revoked(self, mock_fetch_postgres_relation_data, mock_version):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_ingress_ready_and_revoked(
+        self, mock_get_check, mock_fetch_postgres_relation_data, mock_version
+    ):
         mock_version.return_value = "1.0.0"
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_postgres_relation_data.return_value = {}
 
         app_name = self.harness.charm.app.name
@@ -253,7 +266,10 @@ class TestCharmActions(unittest.TestCase):
             },
         )
 
-    def test_create_admin_action(self):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_create_admin_action(self, mock_get_check):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
                 args.command,
@@ -282,7 +298,10 @@ class TestCharmActions(unittest.TestCase):
         )
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
-    def test_create_admin_action_no_fullname(self):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_create_admin_action_no_fullname(self, mock_get_check):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
                 args.command,
@@ -309,7 +328,10 @@ class TestCharmActions(unittest.TestCase):
         )
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
-    def test_create_admin_action_failed(self):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_create_admin_action_failed(self, mock_get_check):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             return ops.testing.ExecResult(exit_code=1)
 
@@ -379,7 +401,9 @@ class TestPeerRelation(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.secrets.choice")
-    def test_create_operator(self, mock_choice, mock_version):
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_create_operator(self, mock_get_check, mock_choice, mock_version):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_choice.side_effect = PASSWD_CHOICES[:16]
         mock_version.return_value = "1.0.0"
 
