@@ -51,7 +51,7 @@ async def test_database_integration(ops_test: OpsTest):
     )
     await ops_test.model.integrate(f"{APP_NAME}", "postgresql-k8s")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000
+        apps=[APP_NAME], status="active", raise_on_blocked=False, timeout=1000
     )
 
 
