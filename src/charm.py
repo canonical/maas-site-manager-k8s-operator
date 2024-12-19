@@ -33,7 +33,7 @@ from charms.traefik_k8s.v2.ingress import (
     IngressPerAppRequirer,
     IngressPerAppRevokedEvent,
 )
-from ops.pebble import ServiceStatus
+from ops.pebble import CheckStatus
 from requests.exceptions import RequestException
 
 from api import SiteManagerClient
@@ -170,7 +170,7 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.add_layer("site-manager", layer, combine=True)
         self.container.restart(self.pebble_service_name)
 
-        if self.container.get_service("msm").current == ServiceStatus.ACTIVE:
+        if self.container.get_check("http-test").status == CheckStatus.UP:
             if version := self.version:
                 # add workload version in juju status
                 self.unit.set_workload_version(version)
