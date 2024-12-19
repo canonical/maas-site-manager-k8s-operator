@@ -10,6 +10,7 @@ import unittest.mock
 import uuid
 
 import ops
+from ops.pebble import CheckStatus
 import ops.testing
 from charms.maas_site_manager_k8s.v0 import enrol
 
@@ -71,9 +72,11 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
+    @unittest.mock.patch("charm.MsmOperatorCharm.container.get_check")
     def test_config_changed_valid_can_connect(
-        self, mock_fetch_postgres_relation_data, mock_version
+        self, mock_get_check, mock_fetch_postgres_relation_data, mock_version
     ):
+        mock_get_check.return_value = CheckStatus.UP
         mock_fetch_postgres_relation_data.return_value = {}
         mock_version.return_value = "1.0.0"
 
