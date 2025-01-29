@@ -133,6 +133,13 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
+        self.framework.observe(self.on["object-storage"].relation_changed, self._on_object_storage_changed)
+
+    def _on_object_storage_changed(self, event):
+        logger.info("data:")
+        logger.info(event.relation.data[event.app])
+
+
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
 

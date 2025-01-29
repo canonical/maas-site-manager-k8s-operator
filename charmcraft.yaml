@@ -71,6 +71,8 @@ requires:
   tracing:
     interface: tracing
     limit: 1
+  object-storage:
+    interface: swift-proxy
 
 provides:
   metrics-endpoint:
