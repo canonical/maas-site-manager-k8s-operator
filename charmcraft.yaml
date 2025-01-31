@@ -48,12 +48,23 @@ assumes:
 containers:
   site-manager:
     resource: site-manager-image
+    mounts:
+      - storage: images
+        location: /images
 
 resources:
   site-manager-image:
     type: oci-image
     description: MAAS Site Manager OCI image
     upstream-source: ghcr.io/canonical/maas-site-manager:0.1
+
+storage:
+  images:
+    type: filesystem
+    description: Directory to store images synced from upstream SimpleStreams server.
+    location: /images
+    shared: true
+
 
 peers:
   site-manager-cluster:
@@ -71,8 +82,6 @@ requires:
   tracing:
     interface: tracing
     limit: 1
-  object-storage:
-    interface: swift-proxy
 
 provides:
   metrics-endpoint:

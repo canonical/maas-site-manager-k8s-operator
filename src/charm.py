@@ -133,12 +133,17 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
-        self.framework.observe(self.on["object-storage"].relation_changed, self._on_object_storage_changed)
+        self.framework.observe(self.on.images_storage_attached, self._on_storage_created)
 
-    def _on_object_storage_changed(self, event):
-        logger.info("data:")
-        logger.info(event.relation.data[event.app])
-
+    def _on_storage_created(self, event: ops.StorageAttachedEvent):
+        images_storage = self.model.storages["images"]
+        if not images_storage:
+            logger.info("Storage is not ready yet")
+            event.defer()
+            self.unit.status = ops.WaitingStatus("waiting for storage")
+            return
+        logger.info("Storage is ready, updating layer and restarting")
+        self._update_layer_and_restart(event)
 
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
@@ -318,6 +323,14 @@ class MsmOperatorCharm(ops.CharmBase):
             return None
 
     @property
+    def storage_path(self) -> Union[str, None]:
+        """Get the storage path for images"""
+        storages = self.model.storages["images"]
+        if storages:
+            return str(storages[0].location)
+        return None
+
+    @property
     def app_environment(self) -> Dict:
         """This property method creates a dictionary containing environment variables for the application.
 
@@ -335,6 +348,7 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_DB_NAME": db_data.get("db_name", None),
             "MSM_DB_PASSWORD": db_data.get("db_password", None),
             "MSM_BASE_PATH": self._ingress.url,
+            "MSM_STORAGE_PATH": self.storage_path,
         }
         return env
 
