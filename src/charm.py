@@ -24,7 +24,7 @@ import requests
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LokiPushApiConsumer
-from charms.maas_site_manager_k8s.v0 import enrol
+from charms.maas_site_manager_k8s.v1 import enroll
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
@@ -103,11 +103,11 @@ class MsmOperatorCharm(ops.CharmBase):
             self.on["site-manager"].pebble_check_recovered, self._on_pebble_check_recovered
         )
 
-        # Enrolment service
-        self._enrol = enrol.EnrolProvider(self)
-        enrol_events = self.on[enrol.DEFAULT_ENDPOINT_NAME]
-        self.framework.observe(enrol_events.relation_joined, self._on_maas_enrol_joined)
-        self.framework.observe(enrol_events.relation_broken, self._on_maas_enrol_broken)
+        # Enrollment service
+        self._enroll = enroll.EnrollProvider(self)
+        enroll_events = self.on[enroll.DEFAULT_ENDPOINT_NAME]
+        self.framework.observe(enroll_events.relation_joined, self._on_maas_enroll_joined)
+        self.framework.observe(enroll_events.relation_broken, self._on_maas_enroll_broken)
 
         # Database connection
         self.framework.observe(self._database.on.database_created, self._on_database_created)
@@ -453,7 +453,7 @@ class MsmOperatorCharm(ops.CharmBase):
         data = self.peers.data[app_or_unit].get(key, "")
         return json.loads(data) if data else {}
 
-    def _get_enrol_token(self) -> Optional[str]:
+    def _get_enroll_token(self) -> Optional[str]:
         if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
             creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
             client = SiteManagerClient(
@@ -461,20 +461,20 @@ class MsmOperatorCharm(ops.CharmBase):
                 password=creds["password"],
                 url=f"http://localhost:{SERVICE_PORT}",
             )
-            return client.issue_enrol_token()
+            return client.issue_enroll_token()
         else:
             return None
 
-    def _on_maas_enrol_joined(self, event: ops.RelationEvent) -> None:
+    def _on_maas_enroll_joined(self, event: ops.RelationEvent) -> None:
         logger.info(event)
         if not self.unit.is_leader():
             return
-        if enrol_token := self._get_enrol_token():
-            self._enrol.publish_enrol_token(event.relation, enrol_token)
+        if enroll_token := self._get_enroll_token():
+            self._enroll.publish_enroll_token(event.relation, enroll_token)
         else:
             event.defer()
 
-    def _on_maas_enrol_broken(self, event: ops.RelationEvent) -> None:
+    def _on_maas_enroll_broken(self, event: ops.RelationEvent) -> None:
         logger.info(event)
         if not self.unit.is_leader():
             return

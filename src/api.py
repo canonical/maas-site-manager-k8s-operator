@@ -38,14 +38,14 @@ class SiteManagerClient:
         jwt = resp.json().get("access_token")
         return {"Authorization": f"Bearer {jwt}"}
 
-    def issue_enrol_token(self) -> str:
-        """Issue an enrolment token.
+    def issue_enroll_token(self) -> str:
+        """Issue an enrollment token.
 
         Raises:
             ApiError: API failed to comply with request
 
         Returns:
-            str: encoded JWT enrolment token
+            str: encoded JWT enrollment token
         """
         headers = self._login()
 
@@ -58,7 +58,7 @@ class SiteManagerClient:
             headers=headers,
         )
         if not resp.ok:
-            raise ApiError(f"Failed to issue enrolment token: {resp.text}")
+            raise ApiError(f"Failed to issue enrollment token: {resp.text}")
 
         tokens = resp.json().get("items")
         return tokens[0]["value"]
