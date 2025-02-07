@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 import ops
 import requests
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
+from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LokiPushApiConsumer
 from charms.maas_site_manager_k8s.v0 import enrol
@@ -133,17 +134,11 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
-        self.framework.observe(self.on.images_storage_attached, self._on_storage_created)
-
-    def _on_storage_created(self, event: ops.StorageAttachedEvent):
-        images_storage = self.model.storages["images"]
-        if not images_storage:
-            logger.info("Storage is not ready yet")
-            event.defer()
-            self.unit.status = ops.WaitingStatus("waiting for storage")
-            return
-        logger.info("Storage is ready, updating layer and restarting")
-        self._update_layer_and_restart(event)
+        self.bucket = "msm-images"
+        self.s3_requirer = S3Requirer(self, "s3", self.bucket)
+        self.framework.observe(
+            self.s3_requirer.on.credentials_changed, self._update_layer_and_restart
+        )
 
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
@@ -174,6 +169,12 @@ class MsmOperatorCharm(ops.CharmBase):
         except DatabaseNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for database relation")
             return
+
+        if not self.s3_requirer.get_s3_connection_info():
+            self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
+            return
+        else:
+            logger.info(f"S3 connection info: {self.s3_requirer.get_s3_connection_info()}")
 
         # Handle Loki push API endpoints
         self._add_log_targets(layer)
@@ -323,14 +324,6 @@ class MsmOperatorCharm(ops.CharmBase):
             return None
 
     @property
-    def storage_path(self) -> Union[str, None]:
-        """Get the storage path for images"""
-        storages = self.model.storages["images"]
-        if storages:
-            return str(storages[0].location)
-        return None
-
-    @property
     def app_environment(self) -> Dict:
         """This property method creates a dictionary containing environment variables for the application.
 
@@ -340,6 +333,7 @@ class MsmOperatorCharm(ops.CharmBase):
         The method returns this dictionary as output.
         """
         db_data = self._fetch_postgres_relation_data()
+        s3_data = self.s3_requirer.get_s3_connection_info()
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
             "MSM_DB_HOST": db_data.get("db_host", None),
@@ -348,7 +342,8 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_DB_NAME": db_data.get("db_name", None),
             "MSM_DB_PASSWORD": db_data.get("db_password", None),
             "MSM_BASE_PATH": self._ingress.url,
-            "MSM_STORAGE_PATH": self.storage_path,
+            "MSM_S3_ACCESS_KEY": s3_data.get("access-key", None),
+            "MSM_S3_SECRET_KEY": s3_data.get("secret-key", None),
         }
         return env
 
