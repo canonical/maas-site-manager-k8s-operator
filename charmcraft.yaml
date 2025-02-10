@@ -78,7 +78,7 @@ provides:
   grafana-dashboard:
     interface: grafana_dashboard
   maas-site-manager:
-    interface: site_manager_enrol
+    interface: site_manager_enroll
 
 config:
   options:
