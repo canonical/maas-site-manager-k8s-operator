@@ -11,14 +11,14 @@ from typing import Any, Dict, List, MutableMapping, Union
 import ops
 
 # The unique Charmhub library identifier, never change it
-LIBID = "c232507f53c34b929e1e7c2bb030d2ce"
+LIBID = "f20c42b02ae6418bb92ce56f8159aea8"
 
 # Increment this major API version when introducing breaking changes
-LIBAPI = 1
+LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 0
+LIBPATCH = 1
 
 DEFAULT_ENDPOINT_NAME = "maas-site-manager"
 TOKEN_SECRET_KEY = "enroll-token"
