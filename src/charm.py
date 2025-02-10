@@ -344,6 +344,9 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_BASE_PATH": self._ingress.url,
             "MSM_S3_ACCESS_KEY": s3_data.get("access-key", None),
             "MSM_S3_SECRET_KEY": s3_data.get("secret-key", None),
+            "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
+            "MSM_S3_BUCKET": s3_data.get("bucket", None),
+            "MSM_S3_PATH": s3_data.get("path", None),
         }
         return env
 
