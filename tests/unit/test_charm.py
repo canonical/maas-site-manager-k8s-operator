@@ -11,7 +11,7 @@ import uuid
 
 import ops
 import ops.testing
-from charms.maas_site_manager_k8s.v1 import enroll
+from charms.maas_site_manager_k8s.v0 import enroll
 from ops.pebble import CheckInfo, CheckLevel, CheckStatus
 
 from charm import (
