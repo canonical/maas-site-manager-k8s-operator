@@ -459,4 +459,4 @@ class TestEnrollment(unittest.TestCase):
         data = self.harness.get_relation_data(rel_id, self.harness.charm.app)
         self.assertIn("token_id", data)  # codespell:ignore
         secret = self.harness.model.get_secret(id=data["token_id"]).get_content()
-        self.assertEqual(secret["enrol-token"], "my-token")
+        self.assertEqual(secret["enroll-token"], "my-token")
