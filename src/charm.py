@@ -59,6 +59,10 @@ class OperatorUserError(Exception):
     """Signals that the charm user is not available."""
 
 
+class S3IntegrationNotReadyError(Exception):
+    """Signals that the s3 integration is not ready."""
+
+
 @trace_charm(
     tracing_endpoint="charm_tracing_endpoint",
     extra_types=[
@@ -169,12 +173,9 @@ class MsmOperatorCharm(ops.CharmBase):
         except DatabaseNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for database relation")
             return
-
-        if not self.s3_requirer.get_s3_connection_info():
+        except S3IntegrationNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
             return
-        else:
-            logger.info(f"S3 connection info: {self.s3_requirer.get_s3_connection_info()}")
 
         # Handle Loki push API endpoints
         self._add_log_targets(layer)
@@ -333,7 +334,7 @@ class MsmOperatorCharm(ops.CharmBase):
         The method returns this dictionary as output.
         """
         db_data = self._fetch_postgres_relation_data()
-        s3_data = self.s3_requirer.get_s3_connection_info()
+        s3_data = self._fetch_s3_connection_info()
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
             "MSM_DB_HOST": db_data.get("db_host", None),
@@ -384,6 +385,21 @@ class MsmOperatorCharm(ops.CharmBase):
             else:
                 return db_data
         raise DatabaseNotReadyError()
+
+    def _fetch_s3_connection_info(self) -> dict:
+        """Fetch s3 connection info."""
+        if connection_info := self.s3_requirer.get_s3_connection_info():
+            try:
+                return {
+                    "access-key": connection_info["access-key"],
+                    "secret-key": connection_info["secret-key"],
+                    "endpoint": connection_info["endpoint"],
+                    "bucket": connection_info["bucket"],
+                    "path": connection_info["path"],
+                }
+            except KeyError:
+                raise S3IntegrationNotReadyError()
+        raise S3IntegrationNotReadyError()
 
     def _create_msm_user(
         self, username: str, password: str, email: str, fullname: Union[str, None] = None
