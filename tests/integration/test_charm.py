@@ -59,6 +59,7 @@ async def test_database_integration(ops_test: OpsTest):
         f"{APP_NAME}/0",
         "--query",
         '\'workload-message=="Waiting for s3 integration" || status=="blocked"\'',
+        "--timeout=1000s",
     ]
     await ops_test.juju(*cmd)
     # still need to fail if blocked status arises
