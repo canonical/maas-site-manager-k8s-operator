@@ -51,6 +51,17 @@ async def test_database_integration(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.integrate(f"{APP_NAME}", "postgresql-k8s")
+    # MSM has two different waiting statuses (one for postgres, one for s3-integrator)
+    # Make sure we've gotten past the waiting for postgres one.
+    cmd = [
+        "wait-for",
+        "unit",
+        f"{APP_NAME}/0",
+        "--query",
+        '\'workload-message=="Waiting for s3 integration" || status=="blocked"\'',
+    ]
+    await ops_test.juju(*cmd)
+    # still need to fail if blocked status arises
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
     )
