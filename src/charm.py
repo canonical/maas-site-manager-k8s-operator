@@ -371,8 +371,8 @@ class MsmOperatorCharm(ops.CharmBase):
         for data in relations.values():
             if not data:
                 continue
-            host, port = data["endpoints"].split(":")
             try:
+                host, port = data["endpoints"].split(":")
                 db_data = {
                     "db_host": host,
                     "db_port": port,
