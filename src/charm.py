@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 import ops
 import requests
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
+from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LokiPushApiConsumer
 from charms.maas_site_manager_k8s.v0 import enrol
@@ -56,6 +57,10 @@ class DatabaseNotReadyError(Exception):
 
 class OperatorUserError(Exception):
     """Signals that the charm user is not available."""
+
+
+class S3IntegrationNotReadyError(Exception):
+    """Signals that the s3 integration is not ready."""
 
 
 @trace_charm(
@@ -133,6 +138,12 @@ class MsmOperatorCharm(ops.CharmBase):
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
+        self.bucket = "msm-images"
+        self.s3_requirer = S3Requirer(self, "s3", self.bucket)
+        self.framework.observe(
+            self.s3_requirer.on.credentials_changed, self._update_layer_and_restart
+        )
+
     def _update_layer_and_restart(self, event):
         """Handle changed configuration.
 
@@ -161,6 +172,9 @@ class MsmOperatorCharm(ops.CharmBase):
             layer = self._pebble_layer
         except DatabaseNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for database relation")
+            return
+        except S3IntegrationNotReadyError:
+            self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
             return
 
         # Handle Loki push API endpoints
@@ -320,6 +334,7 @@ class MsmOperatorCharm(ops.CharmBase):
         The method returns this dictionary as output.
         """
         db_data = self._fetch_postgres_relation_data()
+        s3_data = self._fetch_s3_connection_info()
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
             "MSM_DB_HOST": db_data.get("db_host", None),
@@ -328,6 +343,11 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_DB_NAME": db_data.get("db_name", None),
             "MSM_DB_PASSWORD": db_data.get("db_password", None),
             "MSM_BASE_PATH": self._ingress.url,
+            "MSM_S3_ACCESS_KEY": s3_data.get("access-key", None),
+            "MSM_S3_SECRET_KEY": s3_data.get("secret-key", None),
+            "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
+            "MSM_S3_BUCKET": s3_data.get("bucket", None),
+            "MSM_S3_PATH": s3_data.get("path", None),
         }
         return env
 
@@ -351,8 +371,8 @@ class MsmOperatorCharm(ops.CharmBase):
         for data in relations.values():
             if not data:
                 continue
-            host, port = data["endpoints"].split(":")
             try:
+                host, port = data["endpoints"].split(":")
                 db_data = {
                     "db_host": host,
                     "db_port": port,
@@ -365,6 +385,21 @@ class MsmOperatorCharm(ops.CharmBase):
             else:
                 return db_data
         raise DatabaseNotReadyError()
+
+    def _fetch_s3_connection_info(self) -> dict:
+        """Fetch s3 connection info."""
+        if connection_info := self.s3_requirer.get_s3_connection_info():
+            try:
+                return {
+                    "access-key": connection_info["access-key"],
+                    "secret-key": connection_info["secret-key"],
+                    "endpoint": connection_info["endpoint"],
+                    "bucket": connection_info["bucket"],
+                    "path": connection_info["path"],
+                }
+            except KeyError:
+                raise S3IntegrationNotReadyError()
+        raise S3IntegrationNotReadyError()
 
     def _create_msm_user(
         self, username: str, password: str, email: str, fullname: Union[str, None] = None

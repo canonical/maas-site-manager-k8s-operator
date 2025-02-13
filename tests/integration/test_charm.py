@@ -41,7 +41,8 @@ async def test_build_and_deploy(ops_test: OpsTest):
 async def test_database_integration(ops_test: OpsTest):
     """Verify that the charm integrates with the database.
 
-    Assert that the charm is active if the integration is established.
+    Assert that the charm is waiting for the s3-integration
+    charm if the integration is established.
     """
     await ops_test.model.deploy(
         "postgresql-k8s",
@@ -50,8 +51,58 @@ async def test_database_integration(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.integrate(f"{APP_NAME}", "postgresql-k8s")
+    # MSM has two different waiting statuses (one for postgres, one for s3-integrator)
+    # Make sure we've gotten past the waiting for postgres one.
+    cmd = [
+        "wait-for",
+        "unit",
+        f"{APP_NAME}/0",
+        "--query",
+        '\'workload-message=="Waiting for s3 integration" || status=="blocked"\'',
+        "--timeout=1000s",
+    ]
+    await ops_test.juju(*cmd)
+    # still need to fail if blocked status arises
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", raise_on_blocked=True, timeout=1000
+        apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
+    )
+
+
+@pytest.mark.abort_on_fail
+async def test_s3_integration(ops_test: OpsTest):
+    """Verify that the charm integrates with the s3-integrator charm.
+
+    Assert that the charm is active if the integration is established.
+    """
+    await ops_test.model.deploy(
+        "s3-integrator",
+        application_name="s3-integrator",
+        channel="latest/stable",
+        config={
+            "endpoint": "10.207.11.156",
+            "bucket": "msm-images",
+            "path": "/images",
+        },
+    )
+    await ops_test.model.wait_for_idle(
+        apps=["s3-integrator"],
+        status="blocked",
+        timeout=1000,
+    )
+    cmd = [
+        "run",
+        "s3-integrator/0",
+        "sync-s3-credentials",
+        "access-key=myaccesskey",
+        "secret-key=mysecretkey",
+    ]
+    await ops_test.juju(*cmd)
+    await ops_test.model.integrate(f"{APP_NAME}", "s3-integrator")
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME],
+        status="active",
+        raise_on_blocked=True,
+        timeout=1000,
     )
 
 
