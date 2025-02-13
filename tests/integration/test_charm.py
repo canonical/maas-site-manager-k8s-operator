@@ -84,6 +84,11 @@ async def test_s3_integration(ops_test: OpsTest):
             "path": "/images",
         },
     )
+    await ops_test.model.wait_for_idle(
+        apps=["s3-integrator"],
+        status="blocked",
+        timeout=1000,
+    )
     cmd = [
         "run",
         "s3-integrator/0",
