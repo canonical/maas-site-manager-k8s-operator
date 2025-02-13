@@ -36,22 +36,22 @@ class TestSiteManagerClient(unittest.TestCase):
 
     @patch("charm.SiteManagerClient._login")
     @patch("charm.requests.post")
-    def test_issue_enrol_token(self, mock_tokens, mock_login):
+    def test_issue_enroll_token(self, mock_tokens, mock_login):
         mock_login.return_value = "token"
 
         result = Mock(
             **{
-                "json.return_value": {"items": [{"value": "enrol_token"}]},
+                "json.return_value": {"items": [{"value": "enroll_token"}]},
                 "ok": True,
             }
         )
         mock_tokens.return_value = result
 
-        token = self.client.issue_enrol_token()
+        token = self.client.issue_enroll_token()
 
         mock_login.assert_called_once()
         mock_tokens.assert_called_once()
-        assert token == "enrol_token"
+        assert token == "enroll_token"
 
     @patch("charm.SiteManagerClient._login")
     @patch("charm.requests.get")

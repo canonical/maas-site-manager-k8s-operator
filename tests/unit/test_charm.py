@@ -11,7 +11,7 @@ import uuid
 
 import ops
 import ops.testing
-from charms.maas_site_manager_k8s.v0 import enrol
+from charms.maas_site_manager_k8s.v0 import enroll
 from ops.pebble import CheckInfo, CheckLevel, CheckStatus
 
 from charm import (
@@ -549,7 +549,7 @@ class TestPeerRelation(unittest.TestCase):
         )
 
 
-class TestEnrolment(unittest.TestCase):
+class TestEnrollment(unittest.TestCase):
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("msm-dev-model")
@@ -557,18 +557,18 @@ class TestEnrolment(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.maas_id = str(uuid.uuid4())
 
-    @unittest.mock.patch("charm.MsmOperatorCharm._get_enrol_token")
-    def test_enrol(self, mock_enrol):
-        mock_enrol.return_value = "my-token"
+    @unittest.mock.patch("charm.MsmOperatorCharm._get_enroll_token")
+    def test_enroll(self, mock_enroll):
+        mock_enroll.return_value = "my-token"
         self.harness.set_leader(True)
         self.harness.begin()
         remote_app = "maas-region"
         rel_id = self.harness.add_relation(
-            enrol.DEFAULT_ENDPOINT_NAME,
+            enroll.DEFAULT_ENDPOINT_NAME,
             remote_app,
             unit_data={"unit": f"{remote_app}/0", "uuid": self.maas_id},
         )
         data = self.harness.get_relation_data(rel_id, self.harness.charm.app)
         self.assertIn("token_id", data)  # codespell:ignore
         secret = self.harness.model.get_secret(id=data["token_id"]).get_content()
-        self.assertEqual(secret["enrol-token"], "my-token")
+        self.assertEqual(secret["enroll-token"], "my-token")
