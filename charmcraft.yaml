@@ -92,6 +92,18 @@ config:
         Acceptable values are: "info", "debug", "warning", "error" and "critical"
       default: "info"
       type: string
+    temporal-server-address:
+      description: The host:port for the temporal server
+      default: localhost:7233
+      type: string
+    temporal-namespace:
+      description: The namespace to use for running Temporal workflows
+      default: msm-namespace
+      type: string
+    temporal-task-queue:
+      description: The task queue for Temporal workers to look for jobs in
+      default: msm-queue
+      type: string
 
 actions:
   create-admin:
