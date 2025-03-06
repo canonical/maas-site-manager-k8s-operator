@@ -64,6 +64,9 @@ class TestCharm(unittest.TestCase):
                         "MSM_S3_ENDPOINT": None,
                         "MSM_S3_BUCKET": None,
                         "MSM_S3_PATH": None,
+                        "MSM_TEMPORAL_SERVER_ADDRESS": "localhost:7233",
+                        "MSM_TEMPORAL_NAMESPACE": "msm-namespace",
+                        "MSM_TEMPORAL_TASK_QUEUE": "msm-queue",
                     },
                 }
             },

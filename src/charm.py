@@ -348,6 +348,9 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
             "MSM_S3_BUCKET": s3_data.get("bucket", None),
             "MSM_S3_PATH": s3_data.get("path", None),
+            "MSM_TEMPORAL_SERVER_ADDRESS": self.model.config["temporal-server-address"],
+            "MSM_TEMPORAL_NAMESPACE": self.model.config["temporal-namespace"],
+            "MSM_TEMPORAL_TASK_QUEUE": self.model.config["temporal-task-queue"],
         }
         return env
 
