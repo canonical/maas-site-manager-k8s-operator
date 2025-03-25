@@ -30,10 +30,8 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.tls_certificates_interface.v4.tls_certificates import (
-    Certificate,
     CertificateRequestAttributes,
     Mode,
-    PrivateKey,
     TLSCertificatesRequiresV4,
 )
 from charms.traefik_k8s.v2.ingress import (
@@ -54,6 +52,8 @@ SERVICE_PORT = 8000
 MSM_PEER_NAME = "site-manager-cluster"
 MSM_CREDS_ID = "site-manager-operator-cred-id"
 MSM_CREDS_SECRET = "site-manager-operator-cred"
+MSM_GPG_KEY_ID = "site-manager-operator-gpg-key-id"
+MSM_GPG_KEY_SECRET = "site-manager-operator-gpg-key"
 CERTS_DIR_PATH = "/etc/msm"
 PRIVATE_KEY_NAME = "msm.key"
 CERTIFICATE_NAME = "msm.pem"
@@ -154,7 +154,7 @@ class MsmOperatorCharm(ops.CharmBase):
             charm=self,
             relationship_name="certificates",
             certificate_requests=[self._get_certificate_request_attributes()],
-            mode=Mode.UNIT,
+            mode=Mode.APP,  # we don't want a different private key for each unit
         )
         self.framework.observe(
             self.certificates.on.certificate_available, self._update_layer_and_restart
@@ -560,24 +560,44 @@ class MsmOperatorCharm(ops.CharmBase):
         """Retrieve the new certificate and key, updating the container if necessary."""
         if self.model.relations.get(self.certificates.relationship_name) is None:
             raise CAIntegrationNotReadyError()
-        provider_certificate, private_key = self.certificates.get_assigned_certificate(
-            certificate_request=self._get_certificate_request_attributes()
-        )
-        if not provider_certificate or not private_key:
-            logger.debug("Certificate or private key is not available")
-            raise CAIntegrationNotReadyError()
-        if self._is_certificate_update_required(provider_certificate.certificate):
-            self._store_certificate(certificate=provider_certificate.certificate)
-        if self._is_private_key_update_required(private_key):
-            self._store_private_key(private_key=private_key)
+        if self.unit.is_leader():
+            provider_certificate, private_key = self.certificates.get_assigned_certificate(
+                certificate_request=self._get_certificate_request_attributes()
+            )
+            if not provider_certificate or not private_key:
+                logger.debug("Certificate or private key is not available")
+                raise CAIntegrationNotReadyError()
+            content = {
+                "private_key": str(private_key),
+                "certificate": str(provider_certificate.certificate),
+            }
+            try:
+                secret = self.model.get_secret(label=MSM_GPG_KEY_SECRET)
+                secret.set_content(content)
+            except ops.model.SecretNotFoundError:
+                secret = self.app.add_secret(
+                    content=content,
+                    label=MSM_GPG_KEY_SECRET,
+                )
+                self.set_peer_data(self.app, MSM_GPG_KEY_ID, secret.get_info().id)
+        else:
+            try:
+                secret = self.model.get_secret(id=MSM_GPG_KEY_ID)
+            except ops.model.SecretNotFoundError:
+                raise CAIntegrationNotReadyError()
+            content = secret.get_content(refresh=True)
+        if self._is_certificate_update_required(content["certificate"]):
+            self._store_certificate(content["certificate"])
+        if self._is_private_key_update_required(content["private_key"]):
+            self._store_private_key(content["private_key"])
 
-    def _is_certificate_update_required(self, certificate: Certificate) -> bool:
+    def _is_certificate_update_required(self, certificate: str) -> bool:
         """Check if the current certificate needs to be updated."""
         if self._get_stored_certificate() != certificate:
             return True
         return False
 
-    def _is_private_key_update_required(self, private_key: PrivateKey) -> bool:
+    def _is_private_key_update_required(self, private_key: str) -> bool:
         """Check if the current private key needs to be updated."""
         if self._get_stored_private_key() != private_key:
             return True
@@ -585,41 +605,38 @@ class MsmOperatorCharm(ops.CharmBase):
 
     def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
         """Return attributes for a requested certificate."""
-        # TODO: add correct CN
+        # Since we will be extracting only the public key from the certificate,
+        # the common name does not matter
         return CertificateRequestAttributes("msm")
 
-    def _get_stored_certificate(self) -> Union[Certificate, None]:
+    def _get_stored_certificate(self) -> Optional[str]:
         """Retrieve the current certificate."""
         try:
-            cert_string = str(
-                self.container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read()
-            )
-            return Certificate.from_string(cert_string)
+            cert = str(self.container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read())
+            return cert
         except PathError:
             return None
 
-    def _get_stored_private_key(self) -> Union[PrivateKey, None]:
+    def _get_stored_private_key(self) -> Optional[str]:
         """Retrieve the current private key."""
         try:
-            key_string = str(
-                self.container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read()
-            )
-            return PrivateKey.from_string(key_string)
+            key = str(self.container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read())
+            return key
         except PathError:
             return None
 
-    def _store_certificate(self, certificate: Certificate) -> None:
+    def _store_certificate(self, certificate: str) -> None:
         """Store certificate in workload."""
         self._ensure_certs_dir()
-        self.container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=str(certificate))
+        self.container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
         logger.info("Pushed certificate pushed to workload")
 
-    def _store_private_key(self, private_key: PrivateKey) -> None:
+    def _store_private_key(self, private_key: str) -> None:
         """Store private key in workload."""
         self._ensure_certs_dir()
         self.container.push(
             path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
-            source=str(private_key),
+            source=private_key,
         )
         logger.info("Pushed private key to workload")
 
