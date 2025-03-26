@@ -409,8 +409,10 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
+    @unittest.mock.patch("charm.MsmOperatorCharm._create_operator_user")
     def test_ca_integration(
         self,
+        mock_create_operator_user,
         mock_get_assigned_certificates,
         mock_fetch_s3_connection_info,
         mock_get_check,
@@ -424,6 +426,7 @@ class TestCharm(unittest.TestCase):
         mock_version.return_value = "1.0.0"
         mock_get_assigned_certificates.return_value = (TestCert("test-cert"), "test-key")
         mock_fetch_s3_connection_info.return_value = {}
+        self.harness.set_leader(True)
         self.harness.add_relation(
             "database",
             "postgresql",
@@ -439,6 +442,7 @@ class TestCharm(unittest.TestCase):
             "self-signed-certificates",
         )
 
+        self.harness.add_relation(MSM_PEER_NAME, self.harness.charm.app.name)
         self.harness.container_pebble_ready("site-manager")
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
@@ -446,7 +450,7 @@ class TestCharm(unittest.TestCase):
         gpg_id = self.harness.charm.get_peer_data(app, MSM_GPG_KEY_ID)
         self.assertIsNotNone(gpg_id)
         secret = self.harness.model.get_secret(id=gpg_id).get_content()
-        self.assertDictEqual(secret, {"private_key": "test-key", "certificate": "test-cert"})
+        self.assertDictEqual(secret, {"privatekey": "test-key", "certificate": "test-cert"})
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     def test_charm_level_tracing(self, mock_version):
@@ -479,8 +483,11 @@ class TestCharmActions(unittest.TestCase):
         )
 
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     @unittest.mock.patch("ops.model.Container.get_check")
-    def test_create_admin_action(self, mock_get_check, mock_fetch_s3_connection_info):
+    def test_create_admin_action(
+        self, mock_get_check, mock_check_and_update_certificate, mock_fetch_s3_connection_info
+    ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
 
@@ -513,8 +520,11 @@ class TestCharmActions(unittest.TestCase):
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     @unittest.mock.patch("ops.model.Container.get_check")
-    def test_create_admin_action_no_fullname(self, mock_get_check, mock_fetch_s3_connection_info):
+    def test_create_admin_action_no_fullname(
+        self, mock_get_check, mock_check_and_update_certificate, mock_fetch_s3_connection_info
+    ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
 
@@ -616,11 +626,17 @@ class TestPeerRelation(unittest.TestCase):
         self.assertEqual(self.harness.get_relation_data(rel_id, app)["test_key"], "{}")
 
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.secrets.choice")
     @unittest.mock.patch("ops.model.Container.get_check")
     def test_create_operator(
-        self, mock_get_check, mock_choice, mock_version, mock_fetch_s3_connection_info
+        self,
+        mock_get_check,
+        mock_choice,
+        mock_version,
+        mock_check_and_update_certificate,
+        mock_fetch_s3_connection_info,
     ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}

@@ -568,7 +568,7 @@ class MsmOperatorCharm(ops.CharmBase):
                 logger.debug("Certificate or private key is not available")
                 raise CAIntegrationNotReadyError()
             content = {
-                "private_key": str(private_key),
+                "privatekey": str(private_key),
                 "certificate": str(provider_certificate.certificate),
             }
             try:
@@ -588,8 +588,8 @@ class MsmOperatorCharm(ops.CharmBase):
             content = secret.get_content(refresh=True)
         if self._is_certificate_update_required(content["certificate"]):
             self._store_certificate(content["certificate"])
-        if self._is_private_key_update_required(content["private_key"]):
-            self._store_private_key(content["private_key"])
+        if self._is_private_key_update_required(content["privatekey"]):
+            self._store_private_key(content["privatekey"])
 
     def _is_certificate_update_required(self, certificate: str) -> bool:
         """Check if the current certificate needs to be updated."""
