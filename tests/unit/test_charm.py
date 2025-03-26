@@ -371,13 +371,16 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     def test_ca_integration_not_ready(
         self,
+        mock_fetch_s3_connection_info,
         mock_get_check,
         mock_version,
     ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_version.return_value = "1.0.0"
+        mock_fetch_s3_connection_info.return_value = {}
         self.harness.add_relation(
             "database",
             "postgresql",
@@ -402,12 +405,14 @@ class TestCharm(unittest.TestCase):
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
     def test_ca_integration(
         self,
         mock_get_assigned_certificates,
+        mock_fetch_s3_connection_info,
         mock_get_check,
         mock_version,
     ):
@@ -418,6 +423,7 @@ class TestCharm(unittest.TestCase):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_version.return_value = "1.0.0"
         mock_get_assigned_certificates.return_value = (TestCert("test-cert"), "test-key")
+        mock_fetch_s3_connection_info.return_value = {}
         self.harness.add_relation(
             "database",
             "postgresql",
@@ -427,10 +433,6 @@ class TestCharm(unittest.TestCase):
                 "password": "secret",
                 "database": "name",
             },
-        )
-        self.harness.add_relation(
-            "s3",
-            "s3-integrator",
         )
         self.harness.add_relation(
             "certificates",
