@@ -16,6 +16,7 @@ from ops.pebble import CheckInfo, CheckLevel, CheckStatus
 
 from charm import (
     MSM_CREDS_ID,
+    MSM_GPG_KEY_ID,
     MSM_PEER_NAME,
     PASSWD_CHOICES,
     DatabaseNotReadyError,
@@ -35,8 +36,10 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.requests.get", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_pebble_layer(
         self,
+        mock_check_and_update_certificate,
         mock_get_check,
         mock_fetch_postgres_relation_data,
         mock_get,
@@ -93,8 +96,10 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_config_changed_valid_can_connect(
         self,
+        mock_check_and_update_certificate,
         mock_get_check,
         mock_fetch_postgres_relation_data,
         mock_version,
@@ -120,7 +125,14 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
-    def test_s3_relation(self, mock_fetch_s3_connection_info, mock_get_check, mock_version):
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
+    def test_s3_relation(
+        self,
+        _check_and_update_certificate,
+        mock_fetch_s3_connection_info,
+        mock_get_check,
+        mock_version,
+    ):
         mock_fetch_s3_connection_info.return_value = {
             "access-key": "test-access-key",
             "secret-key": "test-secret-key",
@@ -157,8 +169,13 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_s3_relation_not_ready(
-        self, mock_fetch_s3_connection_info, mock_get_check, mock_version
+        self,
+        mock_check_and_update_certificate,
+        mock_fetch_s3_connection_info,
+        mock_get_check,
+        mock_version,
     ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_version.return_value = "1.0.0"
@@ -219,8 +236,13 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_database_created_and_removed(
-        self, mock_get_check, mock_version, mock_fetch_s3_connection_info
+        self,
+        mock_check_and_update_certificate,
+        mock_get_check,
+        mock_version,
+        mock_fetch_s3_connection_info,
     ):
         mock_version.return_value = "1.0.0"
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
@@ -252,8 +274,10 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_loki_push_api_endpoint_created_updated_and_removed(
         self,
+        mock_check_and_update_certificate,
         mock_get_check,
         mock_fetch_postgres_relation_data,
         mock_version,
@@ -309,8 +333,10 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_postgres_relation_data")
     @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch("charm.MsmOperatorCharm._check_and_update_certificate")
     def test_ingress_ready_and_revoked(
         self,
+        mock_check_and_update_certificate,
         mock_get_check,
         mock_fetch_postgres_relation_data,
         mock_version,
@@ -342,6 +368,83 @@ class TestCharm(unittest.TestCase):
         updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         self.assertEqual(updated_plan["services"]["msm"]["environment"]["MSM_BASE_PATH"], None)
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_ca_integration_not_ready(
+        self,
+        mock_get_check,
+        mock_version,
+    ):
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+        mock_version.return_value = "1.0.0"
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+        self.harness.add_relation(
+            "s3",
+            "s3-integrator",
+        )
+
+        self.harness.container_pebble_ready("site-manager")
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.WaitingStatus("Waiting for certificates relation to be ready"),
+        )
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    @unittest.mock.patch("ops.model.Container.get_check")
+    @unittest.mock.patch(
+        "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
+    )
+    def test_ca_integration(
+        self,
+        mock_get_assigned_certificates,
+        mock_get_check,
+        mock_version,
+    ):
+        class TestCert:
+            def __init__(self, c):
+                self.certificate = c
+
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+        mock_version.return_value = "1.0.0"
+        mock_get_assigned_certificates.return_value = (TestCert("test-cert"), "test-key")
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+        self.harness.add_relation(
+            "s3",
+            "s3-integrator",
+        )
+        self.harness.add_relation(
+            "certificates",
+            "self-signed-certificates",
+        )
+
+        self.harness.container_pebble_ready("site-manager")
+        self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+
+        app = self.harness.charm.app
+        gpg_id = self.harness.charm.get_peer_data(app, MSM_GPG_KEY_ID)
+        self.assertIsNotNone(gpg_id)
+        secret = self.harness.model.get_secret(id=gpg_id).get_content()
+        self.assertDictEqual(secret, {"private_key": "test-key", "certificate": "test-cert"})
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     def test_charm_level_tracing(self, mock_version):

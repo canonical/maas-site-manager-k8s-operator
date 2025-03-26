@@ -306,7 +306,6 @@ class MsmOperatorCharm(ops.CharmBase):
     @property
     def _pebble_layer(self) -> ops.pebble.LayerDict:
         """Return a dictionary representing a Pebble layer."""
-        self._check_and_update_certificate()
         cmd_line = [
             "uvicorn",
             "--host 0.0.0.0",
@@ -330,6 +329,7 @@ class MsmOperatorCharm(ops.CharmBase):
                 }
             },
         }
+        self._check_and_update_certificate()
 
         return cast(ops.pebble.LayerDict, layer)
 
