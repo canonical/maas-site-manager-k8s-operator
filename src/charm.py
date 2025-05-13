@@ -145,13 +145,7 @@ class MsmOperatorCharm(ops.CharmBase):
         )
 
     def _update_layer_and_restart(self, event):
-        """Handle changed configuration.
-
-        Change this example to suit your needs. If you don't need to handle config, you can remove
-        this method.
-
-        Learn more about config at https://juju.is/docs/sdk/config
-        """
+        """Handle changed configuration."""
         self.unit.status = ops.MaintenanceStatus("Assembling pod spec")
 
         # Fetch the new config value
