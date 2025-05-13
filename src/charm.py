@@ -3,14 +3,7 @@
 # See LICENSE file for licensing details.
 #
 # Learn more at: https://juju.is/docs/sdk
-
-"""Charm the service.
-
-Refer to the following tutorial that will help you
-develop a new k8s charm using the Operator Framework:
-
-https://juju.is/docs/sdk/create-a-minimal-kubernetes-charm
-"""
+"""MAAS Site Manager Charm."""
 
 import json
 import logging
@@ -74,7 +67,7 @@ class S3IntegrationNotReadyError(Exception):
     ],
 )
 class MsmOperatorCharm(ops.CharmBase):
-    """Charm the service."""
+    """MAAS Site Manager Charm."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -145,13 +138,7 @@ class MsmOperatorCharm(ops.CharmBase):
         )
 
     def _update_layer_and_restart(self, event):
-        """Handle changed configuration.
-
-        Change this example to suit your needs. If you don't need to handle config, you can remove
-        this method.
-
-        Learn more about config at https://juju.is/docs/sdk/config
-        """
+        """Handle changed configuration."""
         self.unit.status = ops.MaintenanceStatus("Assembling pod spec")
 
         # Fetch the new config value
@@ -245,6 +232,7 @@ class MsmOperatorCharm(ops.CharmBase):
         self._update_layer_and_restart(event)
 
     def _add_log_targets(self, layer: ops.pebble.LayerDict) -> None:
+        """Set up logging with Loki."""
         existing_layer = self.container.get_plan().to_dict()
         if "log-targets" in existing_layer:
             layer["log-targets"] = existing_layer["log-targets"]
@@ -452,6 +440,7 @@ class MsmOperatorCharm(ops.CharmBase):
             event.fail(f"Failed to create user {username}")
 
     def _create_operator_user(self) -> None:
+        """Create an internal admin operator user. Store the credentials in a Juju secret."""
         username = f"{self.app.name}-operator"
         fullname = f"{self.app.name} charm operator"
         password = "".join([secrets.choice(PASSWD_CHOICES) for i in range(16)])
@@ -492,6 +481,7 @@ class MsmOperatorCharm(ops.CharmBase):
         return json.loads(data) if data else {}
 
     def _get_enroll_token(self) -> Optional[str]:
+        """Create an enrollment token for a MAAS Site."""
         if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
             creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
             client = SiteManagerClient(
@@ -504,6 +494,7 @@ class MsmOperatorCharm(ops.CharmBase):
             return None
 
     def _on_maas_enroll_joined(self, event: ops.RelationEvent) -> None:
+        """Set relation data for enrollment."""
         logger.info(event)
         if not self.unit.is_leader():
             return
@@ -513,6 +504,7 @@ class MsmOperatorCharm(ops.CharmBase):
             event.defer()
 
     def _on_maas_enroll_broken(self, event: ops.RelationEvent) -> None:
+        """Handle a broken enrollment relation."""
         logger.info(event)
         if not self.unit.is_leader():
             return
