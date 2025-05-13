@@ -7,5 +7,10 @@ on:
 
 jobs:
   release:
-    uses: canonical/observability/.github/workflows/charm-release.yaml@main
+    name: Release MAAS Site Manager charm to edge
+    uses: canonical/observability/.github/workflows/charm-release.yaml@v0
     secrets: inherit
+    with:
+      juju-channel: 3.6/stable
+      charmcraft-channel: latest/stable
+      provider: microk8s

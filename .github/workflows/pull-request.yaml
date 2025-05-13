@@ -8,5 +8,9 @@ on:
 jobs:
   pull-request:
     name: PR
-    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@main
+    uses: canonical/observability/.github/workflows/charm-pull-request.yaml@v0
     secrets: inherit
+    with:
+      juju-channel: 3.6/stable
+      charmcraft-channel: latest/stable
+      provider: microk8s
