@@ -41,7 +41,7 @@ parts:
       - src/grafana_dashboards/*
 
 assumes:
-  - juju >= 3.3
+  - juju >= 3.6
   - k8s-api
 
 containers:
