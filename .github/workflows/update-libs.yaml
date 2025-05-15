@@ -7,9 +7,9 @@ on:
     - cron: "0 0,4,8,12,16,20 * * *"
 
 jobs:
-  update-libs:
+  update-lib:
     name: Check libraries
-    uses: canonical/observability/.github/workflows/charm-update-libs.yaml@v0
+    uses: canonical/observability/.github/workflows/charm-update-libs.yaml@5b3d2836bb45cb435e78e8d7d041f643d440ece5
     secrets: inherit
     with:
       commit-username: maas-lander
