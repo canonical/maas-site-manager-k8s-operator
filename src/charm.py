@@ -308,7 +308,8 @@ class MsmOperatorCharm(ops.CharmBase):
     def root_path(self) -> Union[str, None]:
         """Get external path prefix handled by the proxy."""
         if u := self._ingress.url:
-            return urlparse(u).path
+            path = urlparse(u).path
+            return path if path != "/" else None
         else:
             return None
 
