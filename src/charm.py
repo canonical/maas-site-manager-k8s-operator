@@ -9,7 +9,7 @@ import json
 import logging
 import secrets
 import string
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import ops
@@ -251,7 +251,7 @@ class MsmOperatorCharm(ops.CharmBase):
                 if "log-targets" not in layer:
                     layer["log-targets"] = {}
 
-                layer["log-targets"][f'loki-{len(layer["log-targets"])}'] = {
+                layer["log-targets"][f"loki-{len(layer['log-targets'])}"] = {
                     "override": "replace",
                     "type": "loki",
                     "location": endpoint,
@@ -305,7 +305,7 @@ class MsmOperatorCharm(ops.CharmBase):
         return ""
 
     @property
-    def root_path(self) -> Union[str, None]:
+    def root_path(self) -> str | None:
         """Get external path prefix handled by the proxy."""
         if u := self._ingress.url:
             path = urlparse(u).path
@@ -314,7 +314,7 @@ class MsmOperatorCharm(ops.CharmBase):
             return None
 
     @property
-    def app_environment(self) -> Dict:
+    def app_environment(self) -> dict:
         """This property method creates a dictionary containing environment variables for the application.
 
         It retrieves the database authentication data by calling
@@ -394,7 +394,7 @@ class MsmOperatorCharm(ops.CharmBase):
         raise S3IntegrationNotReadyError()
 
     def _create_msm_user(
-        self, username: str, password: str, email: str, fullname: Union[str, None] = None
+        self, username: str, password: str, email: str, fullname: str | None = None
     ) -> bool:
         """Create an admin user.
 
@@ -462,26 +462,24 @@ class MsmOperatorCharm(ops.CharmBase):
             raise OperatorUserError("Unable to create operator user")
 
     @property
-    def peers(self) -> Union[ops.Relation, None]:
+    def peers(self) -> ops.Relation | None:
         """Fetch the peer relation."""
         return self.model.get_relation(MSM_PEER_NAME)
 
-    def set_peer_data(
-        self, app_or_unit: Union[ops.Application, ops.Unit], key: str, data: Any
-    ) -> None:
+    def set_peer_data(self, app_or_unit: ops.Application | ops.Unit, key: str, data: Any) -> None:
         """Put information into the peer data bucket."""
         if not self.peers:
             return
         self.peers.data[app_or_unit][key] = json.dumps(data or {})
 
-    def get_peer_data(self, app_or_unit: Union[ops.Application, ops.Unit], key: str) -> Any:
+    def get_peer_data(self, app_or_unit: ops.Application | ops.Unit, key: str) -> Any:
         """Retrieve information from the peer data bucket."""
         if not self.peers:
             return {}
         data = self.peers.data[app_or_unit].get(key, "")
         return json.loads(data) if data else {}
 
-    def _get_enroll_token(self) -> Optional[str]:
+    def _get_enroll_token(self) -> str | None:
         """Create an enrollment token for a MAAS Site."""
         if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
             creds = self.model.get_secret(id=creds_id).get_content(refresh=True)

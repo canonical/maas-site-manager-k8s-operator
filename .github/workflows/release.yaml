@@ -11,3 +11,4 @@ jobs:
     secrets: inherit
     with:
       juju-channel: 3.6/stable
+      python-version: "3.10"
