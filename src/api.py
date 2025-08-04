@@ -1,7 +1,6 @@
 """MAAS Site Manager API client."""
 
 import logging
-from typing import Dict
 
 import requests
 
@@ -24,7 +23,7 @@ class SiteManagerClient:
         self._password = password
         self._url = url
 
-    def _login(self) -> Dict[str, str]:
+    def _login(self) -> dict[str, str]:
         """Authenticate client."""
         resp = requests.post(
             f"{self._url}/api/v1/login",
