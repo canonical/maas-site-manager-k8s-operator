@@ -15,11 +15,11 @@ import ops
 LIBID = "c232507f53c34b929e1e7c2bb030d2ce"
 
 # Increment this major API version when introducing breaking changes
-LIBAPI = 0
+LIBAPI = 1
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 1
 
 DEFAULT_ENDPOINT_NAME = "maas-site-manager"
 TOKEN_SECRET_KEY = "enrol-token"
