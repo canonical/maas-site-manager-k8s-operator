@@ -27,7 +27,7 @@ platforms:
 
 parts:
   charm:
-    build-packages: [cargo, rustc]
+    build-packages: [cargo, rustc, libffi-dev, libssl-dev, pkg-config]
 
   grafana-dashboards:
     plugin: dump
@@ -73,6 +73,8 @@ requires:
   s3:
     interface: s3
     limit: 1
+  certificates:
+    interface: tls-certificates
 
 provides:
   metrics-endpoint:
