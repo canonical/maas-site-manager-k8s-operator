@@ -70,6 +70,12 @@ class TestCharm(unittest.TestCase):
                     },
                 }
             },
+            "checks": {
+                "http-test": {
+                    "override": "replace",
+                    "http": {"url": "http://localhost:8000/version"},
+                }
+            },
         }
         mock_fetch_postgres_relation_data.return_value = {}
         mock_fetch_s3_connection_info.return_value = {}
