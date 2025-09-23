@@ -286,6 +286,12 @@ class MsmOperatorCharm(ops.CharmBase):
                     "command": " ".join(cmd_line),
                     "startup": "enabled",
                     "environment": self.app_environment,
+                },
+            },
+            "checks": {
+                "http-test": {
+                    "override": "replace",
+                    "http": {"url": "http://localhost:8000/version"},
                 }
             },
         }
