@@ -275,7 +275,7 @@ class MsmOperatorCharm(ops.CharmBase):
         ]
         if self.root_path:
             cmd_line.append(f"--root-path {self.root_path}")
-        cmd_line.append("msm.api:create_app")
+        cmd_line.append("msm.apiserver.main:create_app")
         layer = {
             "summary": "site-manager layer",
             "description": "pebble config layer for site-manager",
