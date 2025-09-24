@@ -67,6 +67,7 @@ class TestCharm(unittest.TestCase):
                         "MSM_TEMPORAL_SERVER_ADDRESS": "localhost:7233",
                         "MSM_TEMPORAL_NAMESPACE": "msm-namespace",
                         "MSM_TEMPORAL_TASK_QUEUE": "msm-queue",
+                        "MSM_TEMPORAL_TLS_ROOT_CAS": "",
                     },
                 }
             },

@@ -7,6 +7,7 @@
 
 import json
 import logging
+import os
 import secrets
 import string
 from typing import Any, cast
@@ -14,6 +15,11 @@ from urllib.parse import urlparse
 
 import ops
 import requests
+from charms.certificate_transfer_interface.v1.certificate_transfer import (
+    CertificatesAvailableEvent,
+    CertificatesRemovedEvent,
+    CertificateTransferRequires,
+)
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -40,6 +46,9 @@ SERVICE_PORT = 8000
 MSM_PEER_NAME = "site-manager-cluster"
 MSM_CREDS_ID = "site-manager-operator-cred-id"
 MSM_CREDS_SECRET = "site-manager-operator-cred"
+SCOPE = "unit"
+TLS_TRANSFER_RELATION = "receive-ca-cert"
+
 
 PASSWD_CHOICES = string.ascii_letters + string.digits
 
@@ -127,6 +136,16 @@ class MsmOperatorCharm(ops.CharmBase):
         # Ingress
         self.framework.observe(self._ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self._ingress.on.revoked, self._on_ingress_revoked)
+
+        # Certificate transfer
+        self._ca_folder_path = "/usr/local/share/ca-certificates"
+        self.certificate_transfer = CertificateTransferRequires(self, TLS_TRANSFER_RELATION)
+        self.framework.observe(
+            self.certificate_transfer.on.certificate_set_updated, self._on_cert_transfer_available
+        )
+        self.framework.observe(
+            self.certificate_transfer.on.certificates_removed, self._on_cert_transfer_removed
+        )
 
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
@@ -320,7 +339,7 @@ class MsmOperatorCharm(ops.CharmBase):
             return None
 
     @property
-    def app_environment(self) -> dict:
+    def app_environment(self) -> dict[str, Any]:
         """This property method creates a dictionary containing environment variables for the application.
 
         It retrieves the database authentication data by calling
@@ -346,6 +365,7 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_TEMPORAL_SERVER_ADDRESS": self.model.config["temporal-server-address"],
             "MSM_TEMPORAL_NAMESPACE": self.model.config["temporal-namespace"],
             "MSM_TEMPORAL_TASK_QUEUE": self.model.config["temporal-task-queue"],
+            "MSM_TEMPORAL_TLS_ROOT_CAS": self.model.config["temporal-tls-root-cas"],
         }
         return env
 
@@ -398,6 +418,22 @@ class MsmOperatorCharm(ops.CharmBase):
             except KeyError:
                 raise S3IntegrationNotReadyError()
         raise S3IntegrationNotReadyError()
+
+    def _on_cert_transfer_available(self, event: CertificatesAvailableEvent):
+        for i, cert in enumerate(event.certificates):
+            cert_filename = f"{self._ca_folder_path}/receive-ca-cert-{self.model.uuid}-{event.relation_id}-{i}-ca.crt"
+            self.container.push(cert_filename, cert, make_dirs=True)
+            self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+
+    def _on_cert_transfer_removed(self, event: CertificatesRemovedEvent):
+        certs_to_remove = [
+            filename
+            for filename in os.listdir(self._ca_folder_path)
+            if filename.startswith(f"receive-ca-cert-{self.model.uuid}-{event.relation_id}")
+        ]
+        for cert in certs_to_remove:
+            self.container.remove_path(cert)
+        self.container.exec(["update-ca-certificates", "--fresh"]).wait()
 
     def _create_msm_user(
         self, username: str, password: str, email: str, fullname: str | None = None

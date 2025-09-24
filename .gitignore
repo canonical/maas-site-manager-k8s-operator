@@ -1,4 +1,6 @@
 .env
+.ve
+.ruff_cache
 venv/
 build/
 *.charm
