@@ -49,7 +49,7 @@ class TestCharm(unittest.TestCase):
                 "msm": {
                     "override": "replace",
                     "summary": "MAAS Site Manager",
-                    "command": "uvicorn --host 0.0.0.0 --port 8000 --factory --loop uvloop msm.api:create_app",
+                    "command": "uvicorn --host 0.0.0.0 --port 8000 --factory --loop uvloop msm.apiserver.main:create_app",
                     "startup": "enabled",
                     "environment": {
                         "UVICORN_LOG_LEVEL": "info",
