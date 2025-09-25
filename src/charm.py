@@ -174,6 +174,9 @@ class MsmOperatorCharm(ops.CharmBase):
             self.unit.status = ops.WaitingStatus("waiting for Pebble API")
             return
 
+        # push CA certificates
+        self._dump_all_certificates()
+
         try:
             layer = self._pebble_layer
         except DatabaseNotReadyError:
@@ -433,6 +436,19 @@ class MsmOperatorCharm(ops.CharmBase):
         ]
         for cert in certs_to_remove:
             self.container.remove_path(cert)
+        self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+
+    def _dump_all_certificates(self):
+        relations = [
+            relation for relation in self.model.relations[TLS_TRANSFER_RELATION] if relation.active
+        ]
+        for rel in relations:
+            certs = self.certificate_transfer.get_all_certificates(rel.id)
+            for i, cert in enumerate(certs):
+                cert_filename = (
+                    f"{self._ca_folder_path}/receive-ca-cert-{self.model.uuid}-{rel.id}-{i}-ca.crt"
+                )
+                self.container.push(cert_filename, cert, make_dirs=True)
         self.container.exec(["update-ca-certificates", "--fresh"]).wait()
 
     def _create_msm_user(
