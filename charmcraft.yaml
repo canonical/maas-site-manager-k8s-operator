@@ -6,121 +6,130 @@ type: charm
 title: MAAS Site Manager Kubernetes Operator
 summary: A Juju charm to run MAAS Site Manager on Kubernetes.
 description: |
-  A Juju-operated MAAS Site Manager that orchestrates image provisioning on
-  many MAAS sites.
+    A Juju-operated MAAS Site Manager that orchestrates image provisioning on
+    many MAAS sites.
 
 links:
-  documentation: https://discourse.charmhub.io/t/maas-site-manager-k8s-docs-index/13710
-  website:
-    - https://charmhub.io/maas-site-manager-k8s
-  source:
-    - https://github.com/canonical/maas-site-manager-k8s-operator
-  issues:
-    - https://github.com/canonical/maas-site-manager-k8s-operator/issues
+    documentation: https://discourse.charmhub.io/t/maas-site-manager-k8s-docs-index/13710
+    website:
+        - https://charmhub.io/maas-site-manager-k8s
+    source:
+        - https://github.com/canonical/maas-site-manager-k8s-operator
+    issues:
+        - https://github.com/canonical/maas-site-manager-k8s-operator/issues
 
 base: ubuntu@24.04
 build-base: ubuntu@24.04
 platforms:
-  amd64:
-    build-on: [amd64]
-    build-for: [amd64]
+    amd64:
+        build-on: [amd64]
+        build-for: [amd64]
 
 parts:
-  charm:
-    build-packages: [cargo, rustc]
+    charm:
+        build-packages: [cargo, rustc]
 
-  grafana-dashboards:
-    plugin: dump
-    source: https://github.com/canonical/maas-grafana-dashboards
-    source-depth: 1
-    source-type: git
-    source-subdir: maas-site-manager
-    organize:
-      "*": src/grafana_dashboards/
-    prime:
-      - src/grafana_dashboards/*
+    grafana-dashboards:
+        plugin: dump
+        source: https://github.com/canonical/maas-grafana-dashboards
+        source-depth: 1
+        source-type: git
+        source-subdir: maas-site-manager
+        organize:
+            "*": src/grafana_dashboards/
+        prime:
+            - src/grafana_dashboards/*
 
 assumes:
-  - juju >= 3.6
-  - k8s-api
+    - juju >= 3.6
+    - k8s-api
 
 containers:
-  site-manager:
-    resource: site-manager-image
+    site-manager:
+        resource: site-manager-image
 
 resources:
-  site-manager-image:
-    type: oci-image
-    description: MAAS Site Manager OCI image
-    upstream-source: ghcr.io/canonical/maas-site-manager:0.1
+    site-manager-image:
+        type: oci-image
+        description: MAAS Site Manager OCI image
+        upstream-source: ghcr.io/canonical/maas-site-manager:0.1
 
 peers:
-  site-manager-cluster:
-    interface: site_manager_peers
+    site-manager-cluster:
+        interface: site_manager_peers
 
 requires:
-  database:
-    interface: postgresql_client
-    limit: 1
-  logging-consumer:
-    interface: loki_push_api
-  ingress:
-    interface: ingress
-    limit: 1
-  tracing:
-    interface: tracing
-    limit: 1
-  s3:
-    interface: s3
-    limit: 1
+    database:
+        interface: postgresql_client
+        limit: 1
+    logging-consumer:
+        interface: loki_push_api
+        optional: true
+    ingress:
+        interface: ingress
+        limit: 1
+    tracing:
+        interface: tracing
+        limit: 1
+        optional: true
+    s3:
+        interface: s3
+        limit: 1
+    receive-ca-cert:
+        interface: certificate_transfer
+        optional: true
 
 provides:
-  metrics-endpoint:
-    interface: prometheus_scrape
-  grafana-dashboard:
-    interface: grafana_dashboard
-  maas-site-manager:
-    interface: site_manager_enroll
+    metrics-endpoint:
+        interface: prometheus_scrape
+    grafana-dashboard:
+        interface: grafana_dashboard
+    maas-site-manager:
+        interface: site_manager_enroll
 
 config:
-  options:
-    log-level:
-      description: |
-        Configures the log level of WSGI HTTP Server.
+    options:
+        log-level:
+            description: |
+                Configures the log level of WSGI HTTP Server.
 
-        Acceptable values are: "info", "debug", "warning", "error" and "critical"
-      default: "info"
-      type: string
-    temporal-server-address:
-      description: The host:port for the temporal server
-      default: localhost:7233
-      type: string
-    temporal-namespace:
-      description: The namespace to use for running Temporal workflows
-      default: msm-namespace
-      type: string
-    temporal-task-queue:
-      description: The task queue for Temporal workers to look for jobs in
-      default: msm-queue
-      type: string
+                Acceptable values are: "info", "debug", "warning", "error" and "critical"
+            default: "info"
+            type: string
+        temporal-server-address:
+            description: The host:port for the temporal server
+            default: localhost:7233
+            type: string
+        temporal-namespace:
+            description: The namespace to use for running Temporal workflows
+            default: msm-namespace
+            type: string
+        temporal-task-queue:
+            description: The task queue for Temporal workers to look for jobs in
+            default: msm-queue
+            type: string
+        temporal-tls-root-cas:
+            description: Root certificate authority (CA) certificates for TLS communication.
+            default: ""
+            type: string
 
 actions:
-  create-admin:
-    description: Create an administrator account.
-    params:
-      username:
-        type: string
-        description: Username for the new account.
-      fullname:
-        type: string
-        description: Full name for this user.
-      password:
-        type: string
-        description: A password for this user.
-      email:
-        type: string
-        description: Specifies the email of the admin user.
-    required:
-      - username
-      - password
-      - email
+    create-admin:
+        description: Create an administrator account.
+        params:
+            username:
+                type: string
+                description: Username for the new account.
+            fullname:
+                type: string
+                description: Full name for this user.
+            password:
+                type: string
+                description: A password for this user.
+            email:
+                type: string
+                description: Specifies the email of the admin user.
+        required:
+            - username
+            - password
+            - email
