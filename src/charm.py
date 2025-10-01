@@ -407,7 +407,7 @@ class MsmOperatorCharm(ops.CharmBase):
                 return db_data
         raise DatabaseNotReadyError()
 
-    def _fetch_s3_connection_info(self) -> dict:
+    def _fetch_s3_connection_info(self) -> dict[str, str]:
         """Fetch s3 connection info."""
         if connection_info := self.s3_requirer.get_s3_connection_info():
             try:

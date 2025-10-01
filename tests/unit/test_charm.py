@@ -28,6 +28,7 @@ class TestCharm(unittest.TestCase):
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("maas-dev-model")
+        self.harness.handle_exec("site-manager", ["update-ca-certificates", "--fresh"], result=0)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
@@ -364,6 +365,7 @@ class TestCharmActions(unittest.TestCase):
     def setUp(self):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("maas-dev-model")
+        self.harness.handle_exec("site-manager", ["update-ca-certificates", "--fresh"], result=0)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
@@ -489,6 +491,7 @@ class TestPeerRelation(unittest.TestCase):
         self.harness = ops.testing.Harness(MsmOperatorCharm)
         self.harness.set_model_name("maas-dev-model")
         self.harness.add_network("10.0.0.10")
+        self.harness.handle_exec("site-manager", ["update-ca-certificates", "--fresh"], result=0)
         self.addCleanup(self.harness.cleanup)
 
     def _ready(self):
