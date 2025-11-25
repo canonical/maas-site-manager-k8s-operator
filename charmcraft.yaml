@@ -28,6 +28,12 @@ platforms:
 parts:
     charm:
         build-packages: [cargo, rustc]
+        override-build: |
+            set -e
+            snap install rustup --classic
+            rustup set profile minimal
+            rustup default 1.90.0
+            craftctl default
 
     grafana-dashboards:
         plugin: dump
