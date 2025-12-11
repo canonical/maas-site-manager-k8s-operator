@@ -25,7 +25,7 @@ multipass shell charm-dev-vm
 ```
 
 ## Set up Juju
-First, set up Juju to use a local MicroK8s controller. If you do not already have a `microk8s` cloud, run the following in a shell inside the `charm-dev-vm`:
+First, set up Juju to use a local MicroK8s controller. If you do not already have a `microk8s` cloud (you can check with `juju clouds`), run the following in a shell inside the `charm-dev-vm`:
 
 ```bash
 juju bootstrap microk8s microk8s
