@@ -134,4 +134,4 @@ Events:            <none>
 
 Note the IP address and port of the `temporal-k8s` service (in the output above, this is `10.1.232.64:7233`).
 
-**Next Step**: [Deploy COS Lite](/t/15821)
+**Next Step**: [Set up a reverse-proxy](/t/15828)
