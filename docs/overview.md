@@ -26,7 +26,6 @@ Juju version 3.6 is required for this charm. Versions 3.5 and earlier are not su
 |2 | t-deploy-postgresql | [2. Deploy PostgreSQL](/t/15822)|
 |2 | t-deploy-s3-integrator | [3. Deploy Object Storage and S3 Integrator](/t/17909)|
 |2 | t-deploy-temporal | [4. Deploy Temporal](/t/17910)|
-|2 | t-deploy-cos-lite | [5. Deploy COS Lite Bundle](/t/15821)|
-|2 | t-set-up-tracing | [6. Set up Charm-Level Tracing](/t/15827)|
-|2 | t-reverse-proxy | [7. Set up a Reverse-Proxy](/t/15828)|
-|2 | t-deploy-msm | [8. Deploy MAAS Site Manager](/t/19564)|
+|2 | t-reverse-proxy | [5. Set up a Reverse-Proxy](/t/15828)|
+|2 | t-deploy-msm | [6. Deploy MAAS Site Manager](/t/19564)|
+|2 | t-deploy-monitoring | [7. Set up Monitoring](/t/15821)|
