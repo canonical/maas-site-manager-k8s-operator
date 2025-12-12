@@ -2,6 +2,8 @@
 
 MAAS Site Manager requires a reverse-proxy service. The easiest way to get one is reusing the Traefik service that comes with COS. If you have set up charm-level tracing, you must use Traefik for the reverse-proxy service.
 
+If you haven't deployed COS, you can skip to the "Deploy Traefik manually" section below.
+
 Before starting, ensure you are working in the `cos-lite` model:
 
 ```bash
@@ -21,18 +23,23 @@ juju switch msm
 juju integrate maas-site-manager-k8s admin/cos-lite.traefik
 ```
 
-## Log In
+## Deploy Traefik manually
 
-Now all of our applications are deployed and ready to use. The final step is to create an admin user in MAAS Site Manager so that we can log in:
+If you have deployed COS and provided the integration as shown above, you can skip this section.
+
+First, enable the `metallb` microk8s addon:
 
 ```bash
-juju run maas-site-manager-k8s/0 create-admin username=myusername password=mypassword fullname="Full Name" email=full.name@company.com
+IPADDR=$(ip -4 -j route get 2.2.2.2 | jq -r '.[] | .prefsrc')
+sudo microk8s enable metallb:$IPADDR-$IPADDR
 ```
 
-[note]
-**Note:** username, password, and email are required parameters in the command above.
-[/note]
+Then, deploy `traefik-k8s` in the `msm` model:
 
-Now, we can log in to the MAAS Site Manager webpage with the email and password created above by visiting the URL below in your web browser. Replace `$IPADDR` with the IP address of your `charm-dev-vm` virtual machine. You can see this IP address by running `multipass list` on your **host machine**.
+```bash
+juju switch msm
+juju deploy traefik-k8s
+```
 
-`http://$IPADDR/msm-maas-site-manager-k8s`
+
+**Next Step:** [Deploy MAAS Site Manager](/t/19564)

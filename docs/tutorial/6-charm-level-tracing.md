@@ -110,4 +110,4 @@ juju integrate maas-site-manager-k8s admin/cos-lite.tempo
 
 Charm-level tracing also requires a reverse-proxy service, which will be set up in the next section.
 
-**Next Step:** [Set up a reverse-proxy and log in](/t/15828)
+**Next Step:** [Set up a reverse-proxy](/t/15828)

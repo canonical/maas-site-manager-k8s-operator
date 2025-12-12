@@ -1,6 +1,6 @@
 # Deploy COS Lite Bundle
 
-In this section, we'll deploy the COS Lite bundle and set it up for integration with MAAS Site Manager K8s. This step is optional, but highly recommended. If you plan to use charm-level tracing (next section), this step is required. Also, MAAS Site Manager K8s requires a reverse proxy service, which we will set up in a later section. If you wish to follow our tutorial for setting up a reverse proxy service, you will need to complete this section.
+In this section, we'll deploy the COS Lite bundle and set it up for integration with MAAS Site Manager K8s. This step is optional, but highly recommended. If you plan to use charm-level tracing (next section), this step is required.
 
 All commands below should be executed in a shell inside your `charm-dev-vm`.
 

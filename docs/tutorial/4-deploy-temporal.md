@@ -5,51 +5,29 @@ MAAS Site Manager uses Temporal Workflows for long-running tasks. Follow the ste
 
 ## Deploy Temporal Server
 
-First, add another Juju model for Temporal, deploy the Temporal server k8s charm, and wait for it to enter a `blocked/idle` state:
+First, add another Juju model for Temporal and deploy the Temporal charms:
 
 ```bash
 juju add-model temporal
 juju deploy temporal-k8s --config num-history-shards=4
-juju status --watch 5s  # wait for blocked/idle
+juju deploy temporal-admin-k8s
+juju deploy temporal-ui-k8s --config external-hostname=temporal-ui
 ```
 
-Next, switch back to the `msm` model and create an offer for `postgresql-k8s`:
-
-```bash
-juju switch msm
-juju offer postgresql-k8s:database pgsql
-```
-
-Switch back to the `temporal` model and consume the offer:
+Next, create relations for the Temporal charms:
 
 ```bash
 juju consume admin/msm.pgsql
 juju relate temporal-k8s:db admin/msm.pgsql
 juju relate temporal-k8s:visibility admin/msm.pgsql
-```
-
-Next, deploy the Temporal Admin charm and relate it to temporal-k8s when it enters a blocked/idle state:
-
-```bash
-juju deploy temporal-admin-k8s
-juju status --watch 5s  # wait for blocked/idle from temporal-admin-k8s
 juju relate temporal-k8s:admin temporal-admin-k8s:admin
+juju relate temporal-k8s:ui temporal-ui-k8s:ui
 ```
 
-Next, create a Temporal namespace for MAAS Site Manager called `msm-namespace`:
+Once the charms have settled and are `active/idle`, create a Temporal namespace for MAAS Site Manager. Here, we use the name `msm-namespace`:
 
 ```bash
 juju run temporal-admin-k8s/0 tctl args="--ns msm-namespace namespace register -rd 3" --wait 1m
-```
-
-## Deploy Temporal UI
-
-For debugging Temporal workflows, deploy the Temporal UI charm and relate it to `temporal-k8s` once it enters a blocked/idle state.
-
-```bash
-juju deploy temporal-ui-k8s --config external-hostname=temporal-ui
-juju status --watch 2s  # wait for blocked/idle from temporal-ui-k8s
-juju relate temporal-k8s:ui temporal-ui-k8s:ui
 ```
 
 ## Deploy Ingress Controller
@@ -154,26 +132,6 @@ Annotations:       nginx.ingress.kubernetes.io/backend-protocol: HTTP
 Events:            <none>
 ```
 
-## Deploy Temporal Worker
-
-Next, add a new model for the temporal worker and deploy the charm:
-
-```bash
-juju add-model worker
-juju deploy temporal-worker-k8s --resource temporal-worker-image=ghcr.io/canonical/msm-temporal-worker:1.0
-```
-
-From the output of the `microk8s kubectl describe ingress -n temporal` command above, note the IP address and port of the `temporal-k8s` service (in the output above, this is `10.1.232.64:7233`) and configure the `temporal-worker` charm:
-
-```bash
-juju config temporal-worker-k8s host=$TEMPORAL_IP:$TEMPORAL_PORT queue=msm-queue namespace=msm-namespace
-```
-
-Similarly, we need to update the `maas-site-manager-k8s` config:
-
-```bash
-juju switch msm
-juju config maas-site-manager-k8s temporal-server-address=$TEMPORAL_IP:$TEMPORAL_PORT
-```
+Note the IP address and port of the `temporal-k8s` service (in the output above, this is `10.1.232.64:7233`).
 
 **Next Step**: [Deploy COS Lite](/t/15821)

@@ -1,6 +1,6 @@
-# Deploy MAAS Site Manager and PostgreSQL
+# Deploy PostgreSQL
 
-In this section, we'll deploy MAAS Site Manager and PostgreSQL, and create an integration between the two.
+In this section, we'll deploy PostgreSQL and create a Juju offer.
 
 Before starting, make sure you are working in the correct Juju model:
 
@@ -13,7 +13,7 @@ juju switch msm
 To deploy PostgreSQL, run the following:
 
 ```bash
-juju deploy postgresql-k8s --channel 14/stable
+juju deploy postgresql-k8s --channel 14/stable --trust
 ```
 
 Then, run `juju status --watch 5s` and wait for the `postgresql-k8s/0` unit to report as `waiting/idle`.
@@ -22,19 +22,13 @@ Then, run `juju status --watch 5s` and wait for the `postgresql-k8s/0` unit to r
 **Note**: While waiting, `postgresql-k8s` may enter a blocked state, but will return to `waiting/idle` after some time
 [/note]
 
-## Deploy MAAS Site Manager
 
-To deploy MAAS Site Manager and integrate it with PostgreSQL, run the following:
+## Create a Juju offer
 
-```bash
-juju deploy maas-site-manager-k8s --channel latest/edge
-juju integrate postgresql-k8s maas-site-manager-k8s
-```
-
-Finally, wait for both units to report as `active/idle`:
+Next, create a Juju offer for Postgresql:
 
 ```bash
-juju status --watch 2s
+juju offer postgresql-k8s:database pgsql
 ```
 
 **Next Step**: [Deploy Object Storage and S3 Integrator](/t/17909)

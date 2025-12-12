@@ -56,7 +56,7 @@ export JUJU_CA_CERT="$(juju show-controller $(echo $CONTROLLER|tr -d '"') | yq '
 
 ### Deploy Object Storage and S3 Integrator
 
-MAAS Site Manager requires an object storage service, such as Ceph. For a development environment, [microceph](https://canonical-microceph.readthedocs-hosted.com/en/squid-stable/tutorial/get-started/) is sufficient. Note that microceph's `rgw` service uses port 80 by default. If you are installing microceph in the same VM as MAAS Site Manager, change the `rgw` port to something else (we use 8080 below). Throughout the microceph setup tutorial, take note of the access key and secret key created. Additionally, when creating a bucket, ensure it is called `msm-images`.
+MAAS Site Manager requires an object storage service, such as Ceph. For a development environment, [microceph](https://canonical-microceph.readthedocs-hosted.com/en/squid-stable/tutorial/get-started/) is sufficient. Note that microceph's `rgw` service uses port 80 by default. If you are installing microceph in the same VM as MAAS Site Manager, change the `rgw` port to something else (we use 8080 below). Throughout the microceph setup tutorial, take note of the access key and secret key created.
 
 ### Configure the deployment
 The MAAS Site Manager Terraform plan can take various input variables. Make sure to create a file called `terraform.tfvars` inside the `msm-deployment` directory with the required entries below, or see the [sample](https://git.launchpad.net/maas-site-manager/plain/deployment/config/terraform.tfvars.sample) file.
@@ -69,7 +69,7 @@ s3_secret_key = "my_secret_key"
 s3_bucket = "my_s3_bucket"
 ```
 
-The Terraform plan will deploy MAAS Site Manager, Postgresql, Traefik, S3 Integrator, and the Temporal charms. You may instruct the Terraform plan to skip deploying some of these charms by specifying a Juju offer URL in the `terraform.tfvars` file. See the `variables.tf` file you downloaded earlier for which offers you may specify. You may also specify specific channels and/or revisions to deploy these charms from.
+The Terraform plan will deploy MAAS Site Manager, Postgresql, Traefik, S3 Integrator, and the Temporal charms. You may instruct the Terraform plan to skip deploying some of these charms by specifying a Juju offer URL in the `terraform.tfvars` file. See the `variables.tf` file you downloaded earlier for which offers you may specify.
 
 As the Terraform plan does not deploy the COS Lite stack, you may do so yourself and specify offer URLs for the following endpoints in `terraform.tfvars`:
 
@@ -103,4 +103,4 @@ juju add-model msm
 juju add-model cos-lite
 ```
 
-**Next Step:** [Deploy MAAS Site Manager and PostgreSQL](/t/15822)
+**Next Step:** [Deploy PostgreSQL](/t/15822)
