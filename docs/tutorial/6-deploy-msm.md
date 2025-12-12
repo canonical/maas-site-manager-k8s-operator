@@ -56,3 +56,6 @@ juju run maas-site-manager-k8s/0 create-admin username=myusername password=mypas
 Now, we can log in to the MAAS Site Manager webpage with the email and password created above by visiting the URL below in your web browser. Replace `$IPADDR` with the IP address of your `charm-dev-vm` virtual machine. You can see this IP address by running `multipass list` on your **host machine**.
 
 `http://$IPADDR/msm-maas-site-manager-k8s`
+
+
+**Optional Next Step**: [Setup Monitoring](/t/15821)
