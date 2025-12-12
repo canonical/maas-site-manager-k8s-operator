@@ -1,13 +1,6 @@
 # Contributing
 
-To make contributions to this charm, you'll need a working [development setup](https://juju.is/docs/sdk/dev-setup).
-
-You can create an environment for development with `tox`:
-
-```shell
-tox devenv -e integration
-source venv/bin/activate
-```
+To make contributions to this charm, you'll need a working development environment. See instructions [here](docs/tutorial/1-setup-env.md).
 
 ## Testing
 
@@ -30,5 +23,3 @@ Build the charm in this git repository using:
 ```shell
 charmcraft pack
 ```
-
-<!-- You may want to include any contribution/style guidelines in this document>
