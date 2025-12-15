@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 import ops
 import requests
+import yaml
 from charms.certificate_transfer_interface.v1.certificate_transfer import (
     CertificatesAvailableEvent,
     CertificatesRemovedEvent,
@@ -48,7 +49,12 @@ MSM_CREDS_ID = "site-manager-operator-cred-id"
 MSM_CREDS_SECRET = "site-manager-operator-cred"
 SCOPE = "unit"
 TLS_TRANSFER_RELATION = "receive-ca-cert"
-
+ALLOWABLE_ENV_VARS = [
+    "MSM_CONN_LOST_THRESHOLD_SEC",
+    "MSM_HEARTBEAT_INTERVAL_SEC",
+    "MSM_METRICS_REFRESH_INTERVAL_SEC",
+    "MSM_IMAGE_SERVING_CHUNK_SIZE_BYTES",
+]
 
 PASSWD_CHOICES = string.ascii_letters + string.digits
 
@@ -184,6 +190,9 @@ class MsmOperatorCharm(ops.CharmBase):
             return
         except S3IntegrationNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
+            return
+        except ValueError as ex:
+            self.unit.status = ops.BlockedStatus(f"Invalid configuration: {ex}")
             return
 
         # Handle Loki push API endpoints
@@ -352,6 +361,7 @@ class MsmOperatorCharm(ops.CharmBase):
         """
         db_data = self._fetch_postgres_relation_data()
         s3_data = self._fetch_s3_connection_info()
+        env_config = self._get_environment_config()
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
             "MSM_DB_HOST": db_data.get("db_host", None),
@@ -370,7 +380,29 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_TEMPORAL_TASK_QUEUE": self.model.config["temporal-task-queue"],
             "MSM_TEMPORAL_TLS_ROOT_CAS": self.model.config["temporal-tls-root-cas"],
         }
+        env.update(env_config)
         return env
+
+    def _get_environment_config(self) -> dict[str, Any]:
+        """Parse environment configuration from charm config.
+
+        Returns:
+            dict[str, Any]: environment configuration
+        """
+        env_config_str = str(self.model.config.get("environment", "[]"))
+        try:
+            env_config = yaml.safe_load(env_config_str)
+            if not isinstance(env_config, list):
+                raise ValueError("Environment configuration must be in YAML format as a list.")
+            environment = {}
+            for item in env_config:
+                if item["name"] not in ALLOWABLE_ENV_VARS:
+                    raise ValueError(f"Invalid environment variable: {item['name']}")
+                environment[item["name"]] = item["value"]
+            return environment
+        except yaml.YAMLError as e:
+            logger.error("Failed to parse environment configuration: %s", str(e))
+            raise ValueError("Failed to parse environment configuration.")
 
     def _request_version(self) -> str:  # pragma: nocover
         """Fetch the version from the running workload using the API."""
