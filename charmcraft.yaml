@@ -118,7 +118,25 @@ config:
             description: Root certificate authority (CA) certificates for TLS communication.
             default: ""
             type: string
+        environment:
+            description: |
+                This configuration is used to set environment variables for the MAAS Site
+                Manager application settings. The format is a YAML list where each item
+                is a mapping with keys "name" and "value" representing the environment
+                variable name and its value. Allowable names and default values are shown
+                below.
 
+                ```yaml
+                - name: MSM_CONN_LOST_THRESHOLD_SEC
+                  value: 600
+                - name: MSM_HEARTBEAT_INTERVAL_SEC
+                  value: 300
+                - name: MSM_METRICS_REFRESH_INTERVAL_SEC
+                  value: 300
+                - name: MSM_IMAGE_SERVING_CHUNK_SIZE_BYTES
+                  value: 5242880 # 5 MiB
+                ```
+            type: string
 actions:
     create-admin:
         description: Create an administrator account.
