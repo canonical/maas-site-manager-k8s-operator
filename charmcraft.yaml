@@ -58,7 +58,7 @@ resources:
     site-manager-image:
         type: oci-image
         description: MAAS Site Manager OCI image
-        upstream-source: ghcr.io/canonical/maas-site-manager:0.1
+        upstream-source: ghcr.io/canonical/maas-site-manager:1.0.0
 
 peers:
     site-manager-cluster:
