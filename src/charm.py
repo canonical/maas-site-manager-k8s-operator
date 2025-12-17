@@ -203,38 +203,21 @@ class MsmOperatorCharm(ops.CharmBase):
         self.container.restart(self.pebble_service_name)
 
         if self.container.get_check("http-test").status == CheckStatus.UP:
-            if version := self.version:
-                # add workload version in juju status
-                self.unit.set_workload_version(version)
+            self._set_workload_version()
 
-            if (
-                self.unit.is_leader()
-                and self.peers
-                and not self.get_peer_data(self.app, MSM_CREDS_ID)
-            ):
-                try:
-                    self._create_operator_user()
-                except OperatorUserError as ex:
-                    logger.error(ex)
-                    self.unit.status = ops.BlockedStatus("Failed to create operator user")
-                    return
+            if not self._ensure_operator_user():
+                return
+
             self.unit.status = ops.ActiveStatus()
         else:
             self.unit.status = ops.WaitingStatus("Waiting for msm service to become available")
 
     def _on_pebble_check_recovered(self, event: ops.PebbleCheckRecoveredEvent) -> None:
         logger.info("msm service recovered")
-        if version := self.version:
-            # add workload version in juju status
-            self.unit.set_workload_version(version)
+        self._set_workload_version()
 
-        if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
-            try:
-                self._create_operator_user()
-            except OperatorUserError as ex:
-                logger.error(ex)
-                self.unit.status = ops.BlockedStatus("Failed to create operator user")
-                return
+        if not self._ensure_operator_user():
+            return
 
         self.unit.status = ops.ActiveStatus()
 
@@ -458,7 +441,7 @@ class MsmOperatorCharm(ops.CharmBase):
         for i, cert in enumerate(event.certificates):
             cert_filename = f"{self._ca_folder_path}/receive-ca-cert-{self.model.uuid}-{event.relation_id}-{i}-ca.crt"
             self.container.push(cert_filename, cert, make_dirs=True)
-            self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+            self._update_ca_certificates()
 
     def _on_cert_transfer_removed(self, event: CertificatesRemovedEvent):
         certs_to_remove = [
@@ -468,7 +451,7 @@ class MsmOperatorCharm(ops.CharmBase):
         ]
         for cert in certs_to_remove:
             self.container.remove_path(cert)
-        self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+        self._update_ca_certificates()
 
     def _dump_all_certificates(self):
         relations = [
@@ -481,7 +464,7 @@ class MsmOperatorCharm(ops.CharmBase):
                     f"{self._ca_folder_path}/receive-ca-cert-{self.model.uuid}-{rel.id}-{i}-ca.crt"
                 )
                 self.container.push(cert_filename, cert, make_dirs=True)
-        self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+        self._update_ca_certificates()
 
     def _create_msm_user(
         self, username: str, password: str, email: str, fullname: str | None = None
@@ -569,18 +552,51 @@ class MsmOperatorCharm(ops.CharmBase):
         data = self.peers.data[app_or_unit].get(key, "")
         return json.loads(data) if data else {}
 
-    def _get_enroll_token(self) -> str | None:
-        """Create an enrollment token for a MAAS Site."""
+    def _set_workload_version(self) -> None:
+        """Set the workload version if available."""
+        if version := self.version:
+            # add workload version in juju status
+            self.unit.set_workload_version(version)
+
+    def _ensure_operator_user(self) -> bool:
+        """Ensure operator user is created if needed.
+
+        Returns:
+            bool: True if successful or not needed, False if creation failed
+        """
+        if self.unit.is_leader() and self.peers and not self.get_peer_data(self.app, MSM_CREDS_ID):
+            try:
+                self._create_operator_user()
+            except OperatorUserError as ex:
+                logger.error(ex)
+                self.unit.status = ops.BlockedStatus("Failed to create operator user")
+                return False
+        return True
+
+    def _get_site_manager_client(self) -> SiteManagerClient | None:
+        """Get a SiteManagerClient instance with operator credentials.
+
+        Returns:
+            SiteManagerClient | None: Client instance if credentials are available, None otherwise
+        """
         if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
             creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
-            client = SiteManagerClient(
+            return SiteManagerClient(
                 username=creds["username"],
                 password=creds["password"],
                 url=f"http://localhost:{SERVICE_PORT}",
             )
+        return None
+
+    def _update_ca_certificates(self) -> None:
+        """Update CA certificates in the container."""
+        self.container.exec(["update-ca-certificates", "--fresh"]).wait()
+
+    def _get_enroll_token(self) -> str | None:
+        """Create an enrollment token for a MAAS Site."""
+        if client := self._get_site_manager_client():
             return client.issue_enroll_token()
-        else:
-            return None
+        return None
 
     def _on_maas_enroll_joined(self, event: ops.RelationEvent) -> None:
         """Set relation data for enrollment."""
@@ -597,13 +613,7 @@ class MsmOperatorCharm(ops.CharmBase):
         logger.info(event)
         if not self.unit.is_leader():
             return
-        if creds_id := self.get_peer_data(self.app, MSM_CREDS_ID):
-            creds = self.model.get_secret(id=creds_id).get_content(refresh=True)
-            client = SiteManagerClient(
-                username=creds["username"],
-                password=creds["password"],
-                url=f"http://localhost:{SERVICE_PORT}",
-            )
+        if client := self._get_site_manager_client():
             return client.remove_site(event.relation.data[event.relation.app]["uuid"])
         else:
             event.defer()
