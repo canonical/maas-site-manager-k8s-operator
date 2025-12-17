@@ -71,6 +71,10 @@ class S3IntegrationNotReadyError(Exception):
     """Signals that the s3 integration is not ready."""
 
 
+class TemporalNotConfiguredError(Exception):
+    """Signals that the temporal-server-address is not configured."""
+
+
 @trace_charm(
     tracing_endpoint="charm_tracing_endpoint",
     extra_types=[
@@ -190,6 +194,11 @@ class MsmOperatorCharm(ops.CharmBase):
             return
         except S3IntegrationNotReadyError:
             self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
+            return
+        except TemporalNotConfiguredError:
+            self.unit.status = ops.BlockedStatus(
+                "temporal-server-address configuration is required"
+            )
             return
         except ValueError as ex:
             self.unit.status = ops.BlockedStatus(f"Invalid configuration: {ex}")
@@ -345,6 +354,12 @@ class MsmOperatorCharm(ops.CharmBase):
         db_data = self._fetch_postgres_relation_data()
         s3_data = self._fetch_s3_connection_info()
         env_config = self._get_environment_config()
+
+        # Validate temporal-server-address is configured
+        temporal_server_address = self.model.config["temporal-server-address"]
+        if not temporal_server_address:
+            raise TemporalNotConfiguredError()
+
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
             "MSM_DB_HOST": db_data.get("db_host", None),
@@ -358,7 +373,7 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
             "MSM_S3_BUCKET": s3_data.get("bucket", None),
             "MSM_S3_PATH": s3_data.get("path", None),
-            "MSM_TEMPORAL_SERVER_ADDRESS": self.model.config["temporal-server-address"],
+            "MSM_TEMPORAL_SERVER_ADDRESS": temporal_server_address,
             "MSM_TEMPORAL_NAMESPACE": self.model.config["temporal-namespace"],
             "MSM_TEMPORAL_TASK_QUEUE": self.model.config["temporal-task-queue"],
             "MSM_TEMPORAL_TLS_ROOT_CAS": self.model.config["temporal-tls-root-cas"],
