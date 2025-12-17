@@ -104,7 +104,7 @@ config:
             type: string
         temporal-server-address:
             description: The host:port for the temporal server
-            default: localhost:7233
+            default: ""
             type: string
         temporal-namespace:
             description: The namespace to use for running Temporal workflows

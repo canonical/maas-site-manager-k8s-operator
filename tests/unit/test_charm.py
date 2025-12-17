@@ -85,6 +85,9 @@ class TestCharm(unittest.TestCase):
         json_version.json.return_value = {"version": "1.0.0"}
         mock_get.return_value = json_version
 
+        # Set temporal-server-address to a valid value
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
+
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")
         # Get the plan now we've run PebbleReady
@@ -115,8 +118,10 @@ class TestCharm(unittest.TestCase):
 
         # Ensure the simulated Pebble API is reachable
         self.harness.set_can_connect("site-manager", True)
-        # Trigger a config-changed event with an updated value
-        self.harness.update_config({"log-level": "debug"})
+        # Set temporal-server-address and trigger a config-changed event
+        self.harness.update_config(
+            {"temporal-server-address": "localhost:7233", "log-level": "debug"}
+        )
         # Get the plan now we've run PebbleReady
         updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
         updated_env = updated_plan["services"]["msm"]["environment"]  # type: ignore
@@ -139,6 +144,8 @@ class TestCharm(unittest.TestCase):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_version.return_value = "1.0.0"
         self.harness.set_can_connect("site-manager", True)
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
         # Simulate the database relation created
         self.harness.add_relation(
             "database",
@@ -173,6 +180,8 @@ class TestCharm(unittest.TestCase):
         mock_fetch_s3_connection_info.side_effect = S3IntegrationNotReadyError()
 
         self.harness.set_can_connect("site-manager", True)
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
         # Simulate the database relation created
         self.harness.add_relation(
             "database",
@@ -234,6 +243,9 @@ class TestCharm(unittest.TestCase):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
 
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
+
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")
 
@@ -255,6 +267,82 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(
             self.harness.model.unit.status, ops.WaitingStatus("Waiting for database relation")
         )
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_temporal_not_configured(
+        self, mock_get_check, mock_version, mock_fetch_s3_connection_info
+    ):
+        """Test that charm is blocked when temporal-server-address is not configured."""
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+        mock_version.return_value = "1.0.0"
+        mock_fetch_s3_connection_info.return_value = {}
+
+        self.harness.set_can_connect("site-manager", True)
+
+        # Set temporal-server-address to empty string (default)
+        self.harness.update_config({"temporal-server-address": ""})
+
+        # Simulate the database relation created
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+
+        # Simulate the container coming up and emission of pebble-ready event
+        self.harness.container_pebble_ready("site-manager")
+
+        # Check the charm is in BlockedStatus
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus("temporal-server-address configuration is required"),
+        )
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    @unittest.mock.patch("ops.model.Container.get_check")
+    def test_temporal_configured(
+        self, mock_get_check, mock_version, mock_fetch_s3_connection_info
+    ):
+        """Test that charm works correctly when temporal-server-address is configured."""
+        mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
+        mock_version.return_value = "1.0.0"
+        mock_fetch_s3_connection_info.return_value = {}
+
+        self.harness.set_can_connect("site-manager", True)
+
+        # Set temporal-server-address to a valid value
+        self.harness.update_config({"temporal-server-address": "temporal.example.com:7233"})
+
+        # Simulate the database relation created
+        self.harness.add_relation(
+            "database",
+            "postgresql",
+            app_data={
+                "endpoints": "postgresql.localhost:5432",
+                "username": "appuser",
+                "password": "secret",
+                "database": "name",
+            },
+        )
+
+        # Simulate the container coming up and emission of pebble-ready event
+        self.harness.container_pebble_ready("site-manager")
+
+        # Check the charm is in ActiveStatus
+        self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+
+        # Verify the temporal server address is set correctly in the environment
+        updated_plan = self.harness.get_container_pebble_plan("site-manager").to_dict()
+        updated_env = updated_plan["services"]["msm"]["environment"]
+        self.assertEqual(updated_env["MSM_TEMPORAL_SERVER_ADDRESS"], "temporal.example.com:7233")
 
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
@@ -287,6 +375,9 @@ class TestCharm(unittest.TestCase):
         mock_version.return_value = "1.0.0"
         mock_fetch_postgres_relation_data.return_value = {}
         mock_fetch_s3_connection_info.return_value = {}
+
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
 
         # Simulate the Loki push API relation created
         self.harness.container_pebble_ready("site-manager")
@@ -334,6 +425,9 @@ class TestCharm(unittest.TestCase):
         url = f"http://ingress:8080/{model_name}-{app_name}"
         self.harness.add_network("10.0.0.1")
 
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
+
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")
 
@@ -354,6 +448,8 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     def test_charm_level_tracing(self, mock_version):
         mock_version.return_value = "1.0.0"
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
         self.harness.add_relation("tracing", "tempo")
         self.harness.container_pebble_ready("site-manager")
         rel = self.harness.model.get_relation("tracing")
@@ -370,6 +466,8 @@ class TestCharmActions(unittest.TestCase):
         self.harness.begin()
 
     def _connect(self):
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
         self.harness.container_pebble_ready("site-manager")
         self.harness.add_relation(
             "database",
@@ -495,6 +593,8 @@ class TestPeerRelation(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
 
     def _ready(self):
+        # Set temporal-server-address
+        self.harness.update_config({"temporal-server-address": "localhost:7233"})
         self.harness.container_pebble_ready("site-manager")
         self.harness.add_relation(
             "database",
