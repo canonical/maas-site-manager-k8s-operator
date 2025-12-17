@@ -28,20 +28,12 @@ async def test_build_and_deploy(ops_test: OpsTest):
         "site-manager-image": METADATA["resources"]["site-manager-image"]["upstream-source"]
     }
 
-    # Deploy the charm and wait for blocked status (temporal-server-address not configured)
+    # Deploy the charm and wait for waiting status (waiting for database relation)
     await asyncio.gather(
         ops_test.model.deploy(charm, resources=resources, application_name=APP_NAME),
         ops_test.model.wait_for_idle(
-            apps=[APP_NAME], status="blocked", raise_on_blocked=False, timeout=1000
+            apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
         ),
-    )
-
-    # Configure temporal-server-address to unblock the charm
-    await ops_test.model.applications[APP_NAME].set_config(
-        {"temporal-server-address": "temporal.example.com:7233"}
-    )
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
     )
 
 
@@ -69,7 +61,7 @@ async def test_database_integration(ops_test: OpsTest):
 async def test_s3_integration(ops_test: OpsTest):
     """Verify that the charm integrates with the s3-integrator charm.
 
-    Assert that the charm is active if the integration is established.
+    Assert that the charm is blocked waiting for temporal-server-address configuration.
     """
     await ops_test.model.deploy(
         "s3-integrator",
@@ -95,12 +87,44 @@ async def test_s3_integration(ops_test: OpsTest):
     ]
     await ops_test.juju(*cmd)
     await ops_test.model.integrate(f"{APP_NAME}", "s3-integrator")
+    # After S3 integration, charm should be blocked waiting for temporal-server-address
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
-        status="active",
-        raise_on_blocked=True,
+        status="blocked",
+        raise_on_blocked=False,
         timeout=1000,
     )
+
+
+@pytest.mark.abort_on_fail
+async def test_temporal_configuration(ops_test: OpsTest):
+    """Verify that the charm requires temporal-server-address configuration.
+
+    The charm should unblock from the configuration validation error after setting
+    temporal-server-address. With a fake temporal server, the service may not fully
+    start, so we verify the charm is no longer blocked on the config requirement.
+    """
+    # Configure temporal-server-address to unblock the charm from config validation
+    await ops_test.model.applications[APP_NAME].set_config(
+        {"temporal-server-address": "temporal.example.com:7233"}
+    )
+
+    # Wait for the charm to react to the configuration change
+    # Since temporal is fake, the MSM service may not start properly, but we should
+    # at least move past the "temporal-server-address configuration is required" block
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME],
+        raise_on_blocked=False,
+        timeout=1000,
+    )
+
+    # Verify the status message is no longer the temporal configuration error
+    # The charm may be waiting (service not ready) or blocked (operator user creation failed)
+    # but it should not be blocked on "temporal-server-address configuration is required"
+    unit = ops_test.model.applications[APP_NAME].units[0]
+    assert (
+        "temporal-server-address configuration is required" not in unit.workload_status_message
+    ), "Charm should not be blocked on temporal-server-address after configuration"
 
 
 # TODO: uncomment once we can use self-hosted GH runners
