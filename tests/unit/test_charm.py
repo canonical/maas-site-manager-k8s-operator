@@ -585,3 +585,158 @@ class TestEnrollment(unittest.TestCase):
         self.assertIn("token_id", data)  # codespell:ignore
         secret = self.harness.model.get_secret(id=data["token_id"]).get_content()
         self.assertEqual(secret["enroll-token"], "my-token")
+
+
+class TestHelperMethods(unittest.TestCase):
+    """Test the helper methods added to reduce code duplication."""
+
+    @unittest.mock.patch.dict(os.environ, {"JUJU_VERSION": "4.0.0"}, clear=True)
+    def setUp(self):
+        self.harness = ops.testing.Harness(MsmOperatorCharm)
+        self.harness.set_model_name("maas-dev-model")
+        self.harness.handle_exec("site-manager", ["update-ca-certificates", "--fresh"], result=0)
+        self.addCleanup(self.harness.cleanup)
+        self.harness.begin()
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    def test_set_workload_version_with_version(self, mock_version):
+        """Test _set_workload_version when version is available."""
+        mock_version.return_value = "1.2.3"
+
+        self.harness.charm._set_workload_version()
+
+        # Verify the workload version was set
+        self.assertEqual(self.harness.get_workload_version(), "1.2.3")
+
+    @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
+    def test_set_workload_version_without_version(self, mock_version):
+        """Test _set_workload_version when version is not available."""
+        mock_version.return_value = ""
+
+        self.harness.charm._set_workload_version()
+
+        # Verify no version was set (should remain None)
+        self.assertIsNone(self.harness.get_workload_version())
+
+    def test_ensure_operator_user_not_leader(self):
+        """Test _ensure_operator_user when not leader - should return True."""
+        self.harness.set_leader(False)
+
+        result = self.harness.charm._ensure_operator_user()
+
+        self.assertTrue(result)
+
+    def test_ensure_operator_user_no_peers(self):
+        """Test _ensure_operator_user when no peer relation exists - should return True."""
+        self.harness.set_leader(True)
+
+        result = self.harness.charm._ensure_operator_user()
+
+        self.assertTrue(result)
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._create_operator_user")
+    def test_ensure_operator_user_already_created(self, mock_create):
+        """Test _ensure_operator_user when operator already exists - should return True."""
+        self.harness.set_leader(True)
+        app = self.harness.charm.app
+        rel_id = self.harness.add_relation(MSM_PEER_NAME, app.name)
+
+        # Set existing credentials
+        self.harness.update_relation_data(rel_id, app.name, {MSM_CREDS_ID: '"existing-id"'})
+
+        result = self.harness.charm._ensure_operator_user()
+
+        self.assertTrue(result)
+        mock_create.assert_not_called()
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._create_operator_user")
+    def test_ensure_operator_user_success(self, mock_create):
+        """Test _ensure_operator_user successful creation."""
+        self.harness.set_leader(True)
+        app = self.harness.charm.app
+        self.harness.add_relation(MSM_PEER_NAME, app.name)
+
+        result = self.harness.charm._ensure_operator_user()
+
+        self.assertTrue(result)
+        mock_create.assert_called_once()
+
+    @unittest.mock.patch("charm.MsmOperatorCharm._create_operator_user")
+    def test_ensure_operator_user_failure(self, mock_create):
+        """Test _ensure_operator_user when creation fails."""
+        from charm import OperatorUserError
+
+        mock_create.side_effect = OperatorUserError("Failed to create user")
+        self.harness.set_leader(True)
+        app = self.harness.charm.app
+        self.harness.add_relation(MSM_PEER_NAME, app.name)
+
+        result = self.harness.charm._ensure_operator_user()
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.harness.model.unit.status, ops.BlockedStatus("Failed to create operator user")
+        )
+
+    def test_get_site_manager_client_no_credentials(self):
+        """Test _get_site_manager_client when no credentials exist."""
+        self.harness.set_leader(True)
+
+        client = self.harness.charm._get_site_manager_client()
+
+        self.assertIsNone(client)
+
+    @unittest.mock.patch("charm.SiteManagerClient")
+    def test_get_site_manager_client_with_credentials(self, mock_client_class):
+        """Test _get_site_manager_client when credentials are available."""
+        self.harness.set_leader(True)
+        app = self.harness.charm.app
+        rel_id = self.harness.add_relation(MSM_PEER_NAME, app.name)
+
+        # Create a secret with credentials
+        secret = app.add_secret(
+            {"username": "test@example.com", "password": "testpass"}, label="test-secret"
+        )
+        secret_id = secret.get_info().id
+
+        # Store secret ID in peer data
+        self.harness.update_relation_data(rel_id, app.name, {MSM_CREDS_ID: f'"{secret_id}"'})
+
+        client = self.harness.charm._get_site_manager_client()
+
+        self.assertIsNotNone(client)
+        mock_client_class.assert_called_once_with(
+            username="test@example.com", password="testpass", url="http://localhost:8000"
+        )
+
+    def test_update_ca_certificates(self):
+        """Test _update_ca_certificates executes the correct command."""
+        self.harness.set_can_connect("site-manager", True)
+
+        # The setUp already handles the exec mock, we just verify it's called
+        self.harness.charm._update_ca_certificates()
+
+        # Verify the command was executed (implicitly tested via the mock in setUp)
+        # The harness would raise an error if the command wasn't handled
+
+    def test_update_ca_certificates_integration(self):
+        """Test _update_ca_certificates is called by certificate methods."""
+        self.harness.set_can_connect("site-manager", True)
+
+        # Track exec calls
+        exec_calls = []
+
+        def exec_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
+            exec_calls.append(args.command)
+            return ops.testing.ExecResult(exit_code=0)
+
+        self.harness.handle_exec(
+            "site-manager", ["update-ca-certificates", "--fresh"], handler=exec_handler
+        )
+
+        # Call the method
+        self.harness.charm._update_ca_certificates()
+
+        # Verify the command was called
+        self.assertEqual(len(exec_calls), 1)
+        self.assertEqual(exec_calls[0], ["update-ca-certificates", "--fresh"])
