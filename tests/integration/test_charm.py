@@ -28,12 +28,20 @@ async def test_build_and_deploy(ops_test: OpsTest):
         "site-manager-image": METADATA["resources"]["site-manager-image"]["upstream-source"]
     }
 
-    # Deploy the charm and wait for waiting/idle status
+    # Deploy the charm and wait for blocked status (temporal-server-address not configured)
     await asyncio.gather(
         ops_test.model.deploy(charm, resources=resources, application_name=APP_NAME),
         ops_test.model.wait_for_idle(
-            apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
+            apps=[APP_NAME], status="blocked", raise_on_blocked=False, timeout=1000
         ),
+    )
+
+    # Configure temporal-server-address to unblock the charm
+    await ops_test.model.applications[APP_NAME].set_config(
+        {"temporal-server-address": "temporal.example.com:7233"}
+    )
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
     )
 
 
@@ -51,18 +59,7 @@ async def test_database_integration(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.integrate(f"{APP_NAME}", "postgresql-k8s")
-    # MSM has two different waiting statuses (one for postgres, one for s3-integrator)
-    # Make sure we've gotten past the waiting for postgres one.
-    cmd = [
-        "wait-for",
-        "unit",
-        f"{APP_NAME}/0",
-        "--query",
-        '\'workload-message=="Waiting for s3 integration" || status=="blocked"\'',
-        "--timeout=1000s",
-    ]
-    await ops_test.juju(*cmd)
-    # still need to fail if blocked status arises
+    # After database integration, charm should be waiting for s3 integration
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
     )
