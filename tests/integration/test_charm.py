@@ -36,6 +36,10 @@ async def test_build_and_deploy(ops_test: OpsTest):
         ),
     )
 
+    # Verify we're waiting for the database relation specifically
+    unit = ops_test.model.applications[APP_NAME].units[0]
+    assert unit.workload_status_message == "Waiting for database relation"
+
 
 @pytest.mark.abort_on_fail
 async def test_database_integration(ops_test: OpsTest):
@@ -55,6 +59,10 @@ async def test_database_integration(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
     )
+
+    # Verify we're waiting for s3 integration specifically
+    unit = ops_test.model.applications[APP_NAME].units[0]
+    assert unit.workload_status_message == "Waiting for s3 integration"
 
 
 @pytest.mark.abort_on_fail
@@ -94,6 +102,10 @@ async def test_s3_integration(ops_test: OpsTest):
         raise_on_blocked=False,
         timeout=1000,
     )
+
+    # Verify we're blocked on temporal-server-address configuration specifically
+    unit = ops_test.model.applications[APP_NAME].units[0]
+    assert unit.workload_status_message == "temporal-server-address configuration is required"
 
 
 @pytest.mark.abort_on_fail
