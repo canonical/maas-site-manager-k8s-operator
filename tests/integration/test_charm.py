@@ -56,13 +56,15 @@ async def test_database_integration(ops_test: OpsTest):
     )
     await ops_test.model.integrate(f"{APP_NAME}", "postgresql-k8s")
     # After database integration, charm should be waiting for s3 integration
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="waiting", raise_on_blocked=True, timeout=1000
+    # Use wait-for to check for the specific workload message
+    await ops_test.juju(
+        "wait-for",
+        "unit",
+        f"{APP_NAME}/0",
+        "--query",
+        'workload-status-message=="Waiting for s3 integration"',
+        "--timeout=300s",
     )
-
-    # Verify we're waiting for s3 integration specifically
-    unit = ops_test.model.applications[APP_NAME].units[0]
-    assert unit.workload_status_message == "Waiting for s3 integration"
 
 
 @pytest.mark.abort_on_fail
@@ -84,7 +86,7 @@ async def test_s3_integration(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=["s3-integrator"],
         status="blocked",
-        timeout=1000,
+        timeout=300,
     )
     cmd = [
         "run",
@@ -96,16 +98,15 @@ async def test_s3_integration(ops_test: OpsTest):
     await ops_test.juju(*cmd)
     await ops_test.model.integrate(f"{APP_NAME}", "s3-integrator")
     # After S3 integration, charm should be blocked waiting for temporal-server-address
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        status="blocked",
-        raise_on_blocked=False,
-        timeout=1000,
+    # Use wait-for to check for the specific workload message
+    await ops_test.juju(
+        "wait-for",
+        "unit",
+        f"{APP_NAME}/0",
+        "--query",
+        'workload-status-message=="temporal-server-address configuration is required"',
+        "--timeout=300s",
     )
-
-    # Verify we're blocked on temporal-server-address configuration specifically
-    unit = ops_test.model.applications[APP_NAME].units[0]
-    assert unit.workload_status_message == "temporal-server-address configuration is required"
 
 
 @pytest.mark.abort_on_fail
@@ -121,22 +122,18 @@ async def test_temporal_configuration(ops_test: OpsTest):
         {"temporal-server-address": "temporal.example.com:7233"}
     )
 
-    # Wait for the charm to react to the configuration change
+    # Wait for the charm to react to the configuration change and move past the temporal config error
     # Since temporal is fake, the MSM service may not start properly, but we should
     # at least move past the "temporal-server-address configuration is required" block
-    await ops_test.model.wait_for_idle(
-        apps=[APP_NAME],
-        raise_on_blocked=False,
-        timeout=1000,
+    # Use wait-for to check that the specific temporal config error message is gone
+    await ops_test.juju(
+        "wait-for",
+        "unit",
+        f"{APP_NAME}/0",
+        "--query",
+        'workload-status-message!="temporal-server-address configuration is required"',
+        "--timeout=300s",
     )
-
-    # Verify the status message is no longer the temporal configuration error
-    # The charm may be waiting (service not ready) or blocked (operator user creation failed)
-    # but it should not be blocked on "temporal-server-address configuration is required"
-    unit = ops_test.model.applications[APP_NAME].units[0]
-    assert (
-        "temporal-server-address configuration is required" not in unit.workload_status_message
-    ), "Charm should not be blocked on temporal-server-address after configuration"
 
 
 # TODO: uncomment once we can use self-hosted GH runners
