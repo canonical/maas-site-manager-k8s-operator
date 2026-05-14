@@ -29,6 +29,14 @@ from charms.maas_site_manager_k8s.v0 import enroll
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
+from charms.temporal_k8s.v0.temporal_host_info import (
+    TemporalHostInfoChangedEvent,
+    TemporalHostInfoRequirer,
+)
+from charms.temporal_worker_k8s.v0.temporal_worker_info import (
+    TemporalWorkerInfoRelationReadyEvent,
+    TemporalWorkerInfoRequirer,
+)
 from charms.traefik_k8s.v2.ingress import (
     IngressPerAppReadyEvent,
     IngressPerAppRequirer,
@@ -72,6 +80,10 @@ class S3IntegrationNotReadyError(Exception):
 
 
 class TemporalNotConfiguredError(Exception):
+    """Signals that the temporal-server-address is not configured."""
+
+
+class TemporalWorkerNotConfiguredError(Exception):
     """Signals that the temporal-server-address is not configured."""
 
 
@@ -157,6 +169,16 @@ class MsmOperatorCharm(ops.CharmBase):
             self.certificate_transfer.on.certificates_removed, self._on_cert_transfer_removed
         )
 
+        # Temporal
+        self.temporal = TemporalHostInfoRequirer(self)
+        self.framework.observe(
+            self.temporal.on.temporal_host_info_changed, self._on_temporal_info_changed
+        )
+        self.temporal_worker = TemporalWorkerInfoRequirer(self)
+        self.framework.observe(
+            self.temporal_worker.on.temporal_worker_info_available, self._on_temporal_info_changed
+        )
+
         # Charm actions
         self.framework.observe(self.on.create_admin_action, self._on_create_admin_action)
 
@@ -196,9 +218,10 @@ class MsmOperatorCharm(ops.CharmBase):
             self.unit.status = ops.WaitingStatus("Waiting for s3 integration")
             return
         except TemporalNotConfiguredError:
-            self.unit.status = ops.BlockedStatus(
-                "temporal-server-address configuration is required"
-            )
+            self.unit.status = ops.WaitingStatus("Waiting for temporal-host-info relation")
+            return
+        except TemporalWorkerNotConfiguredError:
+            self.unit.status = ops.WaitingStatus("Waiting for temporal-worker-info relation")
             return
         except ValueError as ex:
             self.unit.status = ops.BlockedStatus(f"Invalid configuration: {ex}")
@@ -252,6 +275,11 @@ class MsmOperatorCharm(ops.CharmBase):
 
     def _on_ingress_revoked(self, event: IngressPerAppRevokedEvent):
         logger.info("This app no longer has ingress")
+        self._update_layer_and_restart(event)
+
+    def _on_temporal_info_changed(
+        self, event: TemporalHostInfoChangedEvent | TemporalWorkerInfoRelationReadyEvent
+    ):
         self._update_layer_and_restart(event)
 
     def _add_log_targets(self, layer: ops.pebble.LayerDict) -> None:
@@ -355,10 +383,10 @@ class MsmOperatorCharm(ops.CharmBase):
         s3_data = self._fetch_s3_connection_info()
         env_config = self._get_environment_config()
 
-        # Validate temporal-server-address is configured
-        temporal_server_address = self.model.config["temporal-server-address"]
-        if not temporal_server_address:
+        if not self.temporal.host:
             raise TemporalNotConfiguredError()
+        if not (self.temporal_worker.namespace and self.temporal_worker.queue):
+            raise TemporalWorkerNotConfiguredError()
 
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
@@ -373,9 +401,9 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
             "MSM_S3_BUCKET": s3_data.get("bucket", None),
             "MSM_S3_PATH": s3_data.get("path", None),
-            "MSM_TEMPORAL_SERVER_ADDRESS": temporal_server_address,
-            "MSM_TEMPORAL_NAMESPACE": self.model.config["temporal-namespace"],
-            "MSM_TEMPORAL_TASK_QUEUE": self.model.config["temporal-task-queue"],
+            "MSM_TEMPORAL_SERVER_ADDRESS": f"{self.temporal.host}:{self.temporal.port}",
+            "MSM_TEMPORAL_NAMESPACE": self.temporal_worker.namespace,
+            "MSM_TEMPORAL_TASK_QUEUE": self.temporal_worker.queue,
             "MSM_TEMPORAL_TLS_ROOT_CAS": self.model.config["temporal-tls-root-cas"],
         }
         env.update(env_config)
