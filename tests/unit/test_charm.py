@@ -192,7 +192,7 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(updated_env["MSM_S3_PATH"], "test-path")
         self.assertEqual(updated_env["MSM_TEMPORAL_SERVER_ADDRESS"], "temporal:7233")
         self.assertEqual(updated_env["MSM_TEMPORAL_NAMESPACE"], "msm-namespace")
-        self.assertEqual(updated_env["MSM_TEMPORAL_QUEUE"], "msm-queue")
+        self.assertEqual(updated_env["MSM_TEMPORAL_TASK_QUEUE"], "msm-queue")
 
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
@@ -508,11 +508,15 @@ class TestCharmActions(unittest.TestCase):
             },
         )
 
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_temporal_relation_data")
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch("ops.model.Container.get_check")
-    def test_create_admin_action(self, mock_get_check, mock_fetch_s3_connection_info):
+    def test_create_admin_action(
+        self, mock_get_check, mock_fetch_s3_connection_info, mock_fetch_temporal_relation_data
+    ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
+        mock_fetch_temporal_relation_data.return_value = {}
 
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
@@ -542,11 +546,15 @@ class TestCharmActions(unittest.TestCase):
         )
         self.assertEqual(output.results, {"info": "user my_user successfully created"})
 
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_temporal_relation_data")
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch("ops.model.Container.get_check")
-    def test_create_admin_action_no_fullname(self, mock_get_check, mock_fetch_s3_connection_info):
+    def test_create_admin_action_no_fullname(
+        self, mock_get_check, mock_fetch_s3_connection_info, mock_fetch_temporal_relation_data
+    ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
+        mock_fetch_temporal_relation_data.return_value = {}
 
         def create_admin_handler(args: ops.testing.ExecArgs) -> ops.testing.ExecResult:
             self.assertEqual(
@@ -646,15 +654,22 @@ class TestPeerRelation(unittest.TestCase):
         self.harness.charm.set_peer_data(app, "test_key", None)
         self.assertEqual(self.harness.get_relation_data(rel_id, app)["test_key"], "{}")
 
+    @unittest.mock.patch("charm.MsmOperatorCharm._fetch_temporal_relation_data")
     @unittest.mock.patch("charm.MsmOperatorCharm._fetch_s3_connection_info")
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("charm.secrets.choice")
     @unittest.mock.patch("ops.model.Container.get_check")
     def test_create_operator(
-        self, mock_get_check, mock_choice, mock_version, mock_fetch_s3_connection_info
+        self,
+        mock_get_check,
+        mock_choice,
+        mock_version,
+        mock_fetch_s3_connection_info,
+        mock_fetch_temporal_relation_data,
     ):
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
         mock_fetch_s3_connection_info.return_value = {}
+        mock_fetch_temporal_relation_data.return_value = {}
         mock_choice.side_effect = PASSWD_CHOICES[:16]
         mock_version.return_value = "1.0.0"
 
