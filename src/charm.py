@@ -382,11 +382,7 @@ class MsmOperatorCharm(ops.CharmBase):
         db_data = self._fetch_postgres_relation_data()
         s3_data = self._fetch_s3_connection_info()
         env_config = self._get_environment_config()
-
-        if not self.temporal.host:
-            raise TemporalNotConfiguredError()
-        if not (self.temporal_worker.namespace and self.temporal_worker.queue):
-            raise TemporalWorkerNotConfiguredError()
+        temporal_data = self._fetch_temporal_relation_data()
 
         env = {
             "UVICORN_LOG_LEVEL": self.model.config["log-level"],
@@ -401,9 +397,9 @@ class MsmOperatorCharm(ops.CharmBase):
             "MSM_S3_ENDPOINT": s3_data.get("endpoint", None),
             "MSM_S3_BUCKET": s3_data.get("bucket", None),
             "MSM_S3_PATH": s3_data.get("path", None),
-            "MSM_TEMPORAL_SERVER_ADDRESS": f"{self.temporal.host}:{self.temporal.port}",
-            "MSM_TEMPORAL_NAMESPACE": self.temporal_worker.namespace,
-            "MSM_TEMPORAL_TASK_QUEUE": self.temporal_worker.queue,
+            "MSM_TEMPORAL_SERVER_ADDRESS": temporal_data.get("host", None),
+            "MSM_TEMPORAL_NAMESPACE": temporal_data.get("namespace", None),
+            "MSM_TEMPORAL_TASK_QUEUE": temporal_data.get("queue", None),
             "MSM_TEMPORAL_TLS_ROOT_CAS": self.model.config["temporal-tls-root-cas"],
         }
         env.update(env_config)
@@ -434,6 +430,17 @@ class MsmOperatorCharm(ops.CharmBase):
         """Fetch the version from the running workload using the API."""
         resp = requests.get(f"http://localhost:{SERVICE_PORT}/version", timeout=10)
         return resp.json()["version"]
+
+    def _fetch_temporal_relation_data(self) -> dict[str, Any]:
+        if not self.temporal.host:
+            raise TemporalNotConfiguredError()
+        if not (self.temporal_worker.namespace and self.temporal_worker.queue):
+            raise TemporalWorkerNotConfiguredError()
+        return {
+            "host": f"{self.temporal.host}:{self.temporal.port}",
+            "namespace": self.temporal_worker.namespace,
+            "queue": self.temporal_worker.queue,
+        }
 
     def _fetch_postgres_relation_data(self) -> dict:
         """Fetch postgres relation data.
