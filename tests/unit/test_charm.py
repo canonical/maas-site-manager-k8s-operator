@@ -261,7 +261,11 @@ class TestCharm(unittest.TestCase):
     @unittest.mock.patch("charm.MsmOperatorCharm.version", new_callable=unittest.mock.PropertyMock)
     @unittest.mock.patch("ops.model.Container.get_check")
     def test_database_created_and_removed(
-        self, mock_get_check, mock_version, mock_fetch_s3_connection_info, mock_fetch_temporal_relation_data
+        self,
+        mock_get_check,
+        mock_version,
+        mock_fetch_s3_connection_info,
+        mock_fetch_temporal_relation_data,
     ):
         mock_version.return_value = "1.0.0"
         mock_get_check.return_value = CheckInfo("http-test", CheckLevel.ALIVE, CheckStatus.UP)
@@ -455,7 +459,6 @@ class TestCharm(unittest.TestCase):
         model_name = self.harness.model.name
         url = f"http://ingress:8080/{model_name}-{app_name}"
         self.harness.add_network("10.0.0.1")
-
 
         # Simulate the container coming up and emission of pebble-ready event
         self.harness.container_pebble_ready("site-manager")

@@ -54,7 +54,7 @@ class SiteManagerClient:
                 "count": 1,
                 "duration": 3600,
             },
-            headers=headers,
+            headers=headers,  # type: ignore
         )
         if not resp.ok:
             raise ApiError(f"Failed to issue enrollment token: {resp.text}")
@@ -76,7 +76,7 @@ class SiteManagerClient:
         resp = requests.get(
             f"{self._url}/api/v1/sites",
             params={"cluster_id": cluster_id},
-            headers=headers,
+            headers=headers,  # type: ignore
         )
         if not resp.ok:
             raise ApiError(f"Failed to query sites: {resp.text}")
@@ -89,7 +89,7 @@ class SiteManagerClient:
         elif len(sites) == 1:
             resp = requests.delete(
                 f"{self._url}/api/v1/sites/{sites[0]['id']}",
-                headers=headers,
+                headers=headers,  # type: ignore
             )
             if not resp.ok:
                 raise ApiError(f"Failed to delete site: {resp.text}")
@@ -98,7 +98,7 @@ class SiteManagerClient:
         # search pending sites
         resp = requests.get(
             f"{self._url}/api/v1/sites/pending",
-            headers=headers,
+            headers=headers,  # type: ignore
         )
         if not resp.ok:
             raise ApiError(f"Failed to query pending sites: {resp.text}")
@@ -113,7 +113,7 @@ class SiteManagerClient:
         elif len(sites_with_cluster_id) == 1:
             resp = requests.delete(
                 f"{self._url}/api/v1/sites/{sites_with_cluster_id[0]}",
-                headers=headers,
+                headers=headers,  # type: ignore
             )
             if not resp.ok:
                 raise ApiError(f"Failed to delete site: {resp.text}")
