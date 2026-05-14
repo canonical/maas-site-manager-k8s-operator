@@ -139,7 +139,7 @@ async def test_temporal_integration(ops_test: OpsTest):
         "temporal-k8s:temporal-host-info", "temporal-admin-k8s:temporal-host-info"
     )
     action = (
-        await ops_test.model.applications["temporal-k8s"]
+        await ops_test.model.applications["temporal-admin-k8s"]
         .units[0]
         .run_action("cli", args="operator namespace create --namespace default --retention 3d")
     )
