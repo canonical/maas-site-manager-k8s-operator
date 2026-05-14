@@ -1,5 +1,4 @@
 # Linting tools configuration
-
 [tool.ruff]
 target-version = "py310"
 line-length = 99
@@ -7,7 +6,6 @@ extend-exclude = [
   "*.egg_info",
   "__pycache__",
 ]
-
 lint.select = [
   "C",
   "D",
@@ -44,18 +42,6 @@ lint.mccabe.max-complexity = 10
 [tool.codespell]
 skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage"
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-log_cli_level = "INFO"
-
-# Formatting tools configuration
-
-[tool.coverage.run]
-branch = true
-
-[tool.coverage.report]
-show_missing = true
-
 [tool.pyright]
 include = [
   "src",
@@ -63,3 +49,12 @@ include = [
 extraPaths = [ "lib" ]
 reportUnannotatedClassAttribute = false
 reportAny = false
+
+[tool.pytest]
+ini_options.minversion = "6.0"
+ini_options.log_cli_level = "INFO"
+
+[tool.coverage]
+# Formatting tools configuration
+run.branch = true
+report.show_missing = true
