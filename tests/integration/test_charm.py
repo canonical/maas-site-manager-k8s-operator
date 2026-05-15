@@ -138,6 +138,11 @@ async def test_temporal_integration(ops_test: OpsTest):
     await ops_test.model.integrate(
         "temporal-k8s:temporal-host-info", "temporal-admin-k8s:temporal-host-info"
     )
+    await ops_test.model.wait_for_idle(
+        apps=["temporal-k8s", "temporal-worker-k8s"],
+        status="active",
+        timeout=300,
+    )
     action = (
         await ops_test.model.applications["temporal-admin-k8s"]
         .units[0]
