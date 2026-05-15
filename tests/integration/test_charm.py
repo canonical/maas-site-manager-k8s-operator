@@ -114,9 +114,7 @@ async def test_s3_integration(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_temporal_integrations(ops_test: OpsTest):
-    """Verify that the charm requires temporal-host-info and
-    temporal-worker-info relations.
-    """
+    """Verify that the charm requires temporal-host-info and temporal-worker-info relations."""
     assert ops_test.model is not None
     await ops_test.model.deploy(
         "temporal-k8s",
