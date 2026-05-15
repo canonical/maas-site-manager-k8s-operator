@@ -153,6 +153,7 @@ async def test_temporal_integration(ops_test: OpsTest):
             "queue": "queue",
         },
         base="ubuntu@24.04",
+        resources={"temporal-worker-image": "ghcr.io/canonical/maas-site-manager:1.1.0"},
     )
 
     await ops_test.model.wait_for_idle(
