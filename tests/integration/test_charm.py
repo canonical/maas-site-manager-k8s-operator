@@ -148,26 +148,7 @@ async def test_temporal_integrations(ops_test: OpsTest):
         .units[0]
         .run_action("cli", args="operator namespace create --namespace default --retention 3d")
     )
-    action.wait()
-    await ops_test.model.deploy(
-        "temporal-worker-k8s",
-        application_name="temporal-worker-k8s",
-        channel="1.0/stable",
-        config={
-            "namespace": "namespace",
-            "queue": "queue",
-        },
-        base="ubuntu@24.04",
-        series="noble",
-        resources={"temporal-worker-image": "ghcr.io/canonical/maas-site-manager:1.1.0"},
-    )
-
-    await ops_test.model.wait_for_idle(
-        apps=["temporal-k8s", "temporal-worker-k8s"],
-        status="active",
-        timeout=300,
-    )
-
+    await action.wait()
     await ops_test.model.integrate(
         f"{APP_NAME}:temporal-host-info", "temporal-k8s:temporal-host-info"
     )
@@ -181,15 +162,31 @@ async def test_temporal_integrations(ops_test: OpsTest):
         "--timeout=300s",
     )
 
-    await ops_test.model.integrate(
-        f"{APP_NAME}:temporal-worker-info", "temporal-worker-k8s:temporal-worker-info"
-    )
+    # TODO: Uncomment when we move integration tests to jubilant
+    # There is a bug in python-libjuju that prevents deploying the temporal-worker-k8s charm
+    # here, so leave this out of the tests for now
+    # await ops_test.model.deploy(
+    #     "temporal-worker-k8s",
+    #     application_name="temporal-worker-k8s",
+    #     channel="1.0/stable",
+    #     config={
+    #         "namespace": "namespace",
+    #         "queue": "queue",
+    #     },
+    #     base="ubuntu@24.04",
+    #     series="noble",
+    #     resources={"temporal-worker-image": "ghcr.io/canonical/maas-site-manager:1.1.0"},
+    # )
 
-    await ops_test.model.wait_for_idle(
-        apps=[f"{APP_NAME}"],
-        status="active",
-        timeout=300,
-    )
+    # await ops_test.model.integrate(
+    #     f"{APP_NAME}:temporal-worker-info", "temporal-worker-k8s:temporal-worker-info"
+    # )
+
+    # await ops_test.model.wait_for_idle(
+    #     apps=[f"{APP_NAME}"],
+    #     status="active",
+    #     timeout=300,
+    # )
 
 
 # TODO: uncomment once we can use self-hosted GH runners
