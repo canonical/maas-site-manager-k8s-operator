@@ -122,6 +122,7 @@ async def test_temporal_integrations(ops_test: OpsTest):
         channel="1.23/stable",
         config={"num-history-shards": 4},
         base="ubuntu@24.04",
+        series="noble",
     )
     await ops_test.model.integrate("temporal-k8s:db", "postgresql-k8s:database")
     await ops_test.model.integrate("temporal-k8s:visibility", "postgresql-k8s:database")
@@ -130,6 +131,7 @@ async def test_temporal_integrations(ops_test: OpsTest):
         application_name="temporal-admin-k8s",
         channel="1.23/stable",
         base="ubuntu@24.04",
+        series="noble",
     )
 
     await ops_test.model.integrate("temporal-k8s:admin", "temporal-admin-k8s:admin")
@@ -156,6 +158,7 @@ async def test_temporal_integrations(ops_test: OpsTest):
             "queue": "queue",
         },
         base="ubuntu@24.04",
+        series="noble",
         resources={"temporal-worker-image": "ghcr.io/canonical/maas-site-manager:1.1.0"},
     )
 
