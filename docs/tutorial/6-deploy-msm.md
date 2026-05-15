@@ -15,7 +15,7 @@ Next, configure the worker charm and relate the temporal server charm to the wor
 
 ```bash
 juju config temporal-worker-k8s queue=msm-queue namespace=msm-namespace
-juju relate temporal-worker-k8s admin/temporal.temporal-k8s
+juju integrate temporal-worker-k8s admin/temporal.temporal-k8s
 ```
 
 We will also need the `temporal-worker-info` relation in another model, so create an offer for it:
@@ -39,7 +39,8 @@ Next, we provide integrations for MAAS Site Manager:
 juju integrate postgresql-k8s maas-site-manager-k8s
 juju integrate traefik-k8s maas-site-manager-k8s
 juju integrate maas-site-manager-k8s s3-integrator
-juju relate maas-site-manager-k8s admin/worker.temporal-worker-k8s
+juju integrate maas-site-manager-k8s admin/temporal.temporal-k8s
+juju integrate maas-site-manager-k8s admin/worker.temporal-worker-k8s
 ```
 
 ## Log In

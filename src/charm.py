@@ -432,7 +432,7 @@ class MsmOperatorCharm(ops.CharmBase):
         return resp.json()["version"]
 
     def _fetch_temporal_relation_data(self) -> dict[str, Any]:
-        if not self.temporal.host:
+        if not (self.temporal.host and self.temporal.port):
             raise TemporalNotConfiguredError()
         if not (self.temporal_worker.namespace and self.temporal_worker.queue):
             raise TemporalWorkerNotConfiguredError()
