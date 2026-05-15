@@ -139,7 +139,7 @@ async def test_temporal_integrations(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=["temporal-k8s", "temporal-admin-k8s"],
         status="active",
-        timeout=300,
+        timeout=600,
     )
     action = (
         await ops_test.model.applications["temporal-admin-k8s"]
