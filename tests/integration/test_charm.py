@@ -22,6 +22,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 
     Assert on the unit status before any relations/configurations take place.
     """
+    assert ops_test.model is not None
     # Build and deploy charm from local source folder
     charm = await ops_test.build_charm(".")
     resources = {
@@ -48,6 +49,7 @@ async def test_database_integration(ops_test: OpsTest):
     Assert that the charm is waiting for the s3-integration
     charm if the integration is established.
     """
+    assert ops_test.model is not None
     await ops_test.model.deploy(
         "postgresql-k8s",
         application_name="postgresql-k8s",
@@ -73,6 +75,7 @@ async def test_s3_integration(ops_test: OpsTest):
 
     Assert that the charm is blocked waiting for temporal-host-info relation.
     """
+    assert ops_test.model is not None
     await ops_test.model.deploy(
         "s3-integrator",
         application_name="s3-integrator",
@@ -110,14 +113,11 @@ async def test_s3_integration(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-async def test_temporal_integration(ops_test: OpsTest):
-    """Verify that the charm requires temporal-host-info relation.
-
-    The charm should unblock from the configuration validation error after setting
-    temporal-server-address. With a fake temporal server, the service may not fully
-    start, so we verify the charm is no longer blocked on the config requirement.
+async def test_temporal_integrations(ops_test: OpsTest):
+    """Verify that the charm requires temporal-host-info and
+    temporal-worker-info relations.
     """
-    # Configure temporal-server-address to unblock the charm from config validation
+    assert ops_test.model is not None
     await ops_test.model.deploy(
         "temporal-k8s",
         application_name="temporal-k8s",
@@ -139,7 +139,7 @@ async def test_temporal_integration(ops_test: OpsTest):
         "temporal-k8s:temporal-host-info", "temporal-admin-k8s:temporal-host-info"
     )
     await ops_test.model.wait_for_idle(
-        apps=["temporal-k8s", "temporal-worker-k8s"],
+        apps=["temporal-k8s", "temporal-admin-k8s"],
         status="active",
         timeout=300,
     )
