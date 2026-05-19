@@ -58,7 +58,7 @@ resources:
     site-manager-image:
         type: oci-image
         description: MAAS Site Manager OCI image
-        upstream-source: ghcr.io/canonical/maas-site-manager:1.0.0
+        upstream-source: ghcr.io/canonical/maas-site-manager:1.1.0
 
 peers:
     site-manager-cluster:
@@ -84,6 +84,14 @@ requires:
     receive-ca-cert:
         interface: certificate_transfer
         optional: true
+    temporal-host-info:
+        interface: temporal-host-info
+        limit: 1
+        optional: false
+    temporal-worker-info:
+        interface: temporal-worker-info
+        limit: 1
+        optional: false
 
 provides:
     metrics-endpoint:
@@ -101,18 +109,6 @@ config:
 
                 Acceptable values are: "info", "debug", "warning", "error" and "critical"
             default: "info"
-            type: string
-        temporal-server-address:
-            description: The host:port for the temporal server
-            default: ""
-            type: string
-        temporal-namespace:
-            description: The namespace to use for running Temporal workflows
-            default: msm-namespace
-            type: string
-        temporal-task-queue:
-            description: The task queue for Temporal workers to look for jobs in
-            default: msm-queue
             type: string
         temporal-tls-root-cas:
             description: Root certificate authority (CA) certificates for TLS communication.

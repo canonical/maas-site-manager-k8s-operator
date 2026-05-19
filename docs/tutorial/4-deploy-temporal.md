@@ -9,9 +9,9 @@ First, add another Juju model for Temporal and deploy the Temporal charms:
 
 ```bash
 juju add-model temporal
-juju deploy temporal-k8s --config num-history-shards=4
-juju deploy temporal-admin-k8s
-juju deploy temporal-ui-k8s --config external-hostname=temporal-ui
+juju deploy temporal-k8s --config num-history-shards=4 --channel 1.23/stable --base ubuntu@24.04
+juju deploy temporal-admin-k8s --channel 1.23/stable --base ubuntu@24.04
+juju deploy temporal-ui-k8s --config external-hostname=temporal-ui --channel 1.23/stable --base ubuntu@24.04
 ```
 
 Next, create relations for the Temporal charms:
@@ -22,12 +22,20 @@ juju relate temporal-k8s:db admin/msm.pgsql
 juju relate temporal-k8s:visibility admin/msm.pgsql
 juju relate temporal-k8s:admin temporal-admin-k8s:admin
 juju relate temporal-k8s:ui temporal-ui-k8s:ui
+juju relate temporal-k8s:temporal-host-info temporal-admin-k8s:temporal-host-info
+juju relate temporal-k8s:temporal-host-info temporal-ui-k8s:temporal-host-info
+```
+
+We will need the `temporal-host-info` relation in other models, so create an offer for it:
+
+```bash
+juju offer temporal-k8s:temporal-host-info
 ```
 
 Once the charms have settled and are `active/idle`, create a Temporal namespace for MAAS Site Manager. Here, we use the name `msm-namespace`:
 
 ```bash
-juju run temporal-admin-k8s/0 tctl args="--ns msm-namespace namespace register -rd 3" --wait 1m
+juju run temporal-admin-k8s/0 cli args="operator namespace create --namespace msm-namespace --retention 3d" --wait 1m
 ```
 
 ## Deploy Ingress Controller

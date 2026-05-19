@@ -22,6 +22,7 @@ async def test_build_and_deploy(ops_test: OpsTest):
 
     Assert on the unit status before any relations/configurations take place.
     """
+    assert ops_test.model is not None
     # Build and deploy charm from local source folder
     charm = await ops_test.build_charm(".")
     resources = {
@@ -48,6 +49,7 @@ async def test_database_integration(ops_test: OpsTest):
     Assert that the charm is waiting for the s3-integration
     charm if the integration is established.
     """
+    assert ops_test.model is not None
     await ops_test.model.deploy(
         "postgresql-k8s",
         application_name="postgresql-k8s",
@@ -71,8 +73,9 @@ async def test_database_integration(ops_test: OpsTest):
 async def test_s3_integration(ops_test: OpsTest):
     """Verify that the charm integrates with the s3-integrator charm.
 
-    Assert that the charm is blocked waiting for temporal-server-address configuration.
+    Assert that the charm is blocked waiting for temporal-host-info relation.
     """
+    assert ops_test.model is not None
     await ops_test.model.deploy(
         "s3-integrator",
         application_name="s3-integrator",
@@ -104,36 +107,86 @@ async def test_s3_integration(ops_test: OpsTest):
         "unit",
         f"{APP_NAME}/0",
         "--query",
-        'workload-status-message=="temporal-server-address configuration is required"',
+        'workload-status-message=="Waiting for temporal-host-info relation"',
         "--timeout=300s",
     )
 
 
 @pytest.mark.abort_on_fail
-async def test_temporal_configuration(ops_test: OpsTest):
-    """Verify that the charm requires temporal-server-address configuration.
-
-    The charm should unblock from the configuration validation error after setting
-    temporal-server-address. With a fake temporal server, the service may not fully
-    start, so we verify the charm is no longer blocked on the config requirement.
-    """
-    # Configure temporal-server-address to unblock the charm from config validation
-    await ops_test.model.applications[APP_NAME].set_config(
-        {"temporal-server-address": "temporal.example.com:7233"}
+async def test_temporal_integrations(ops_test: OpsTest):
+    """Verify that the charm requires temporal-host-info and temporal-worker-info relations."""
+    assert ops_test.model is not None
+    await ops_test.model.deploy(
+        "temporal-k8s",
+        application_name="temporal-k8s",
+        channel="1.23/stable",
+        config={"num-history-shards": 4},
+        base="ubuntu@24.04",
+        series="noble",
+    )
+    await ops_test.model.integrate("temporal-k8s:db", "postgresql-k8s:database")
+    await ops_test.model.integrate("temporal-k8s:visibility", "postgresql-k8s:database")
+    await ops_test.model.deploy(
+        "temporal-admin-k8s",
+        application_name="temporal-admin-k8s",
+        channel="1.23/stable",
+        base="ubuntu@24.04",
+        series="noble",
     )
 
-    # Wait for the charm to react to the configuration change and move past the temporal config error
-    # Since temporal is fake, the MSM service may not start properly, but we should
-    # at least move past the "temporal-server-address configuration is required" block
-    # Use wait-for to check that the specific temporal config error message is gone
+    await ops_test.model.integrate("temporal-k8s:admin", "temporal-admin-k8s:admin")
+    await ops_test.model.integrate(
+        "temporal-k8s:temporal-host-info", "temporal-admin-k8s:temporal-host-info"
+    )
+    await ops_test.model.wait_for_idle(
+        apps=["temporal-k8s", "temporal-admin-k8s"],
+        status="active",
+        timeout=600,
+    )
+    action = (
+        await ops_test.model.applications["temporal-admin-k8s"]
+        .units[0]
+        .run_action("cli", args="operator namespace create --namespace default --retention 3d")
+    )
+    await action.wait()
+    await ops_test.model.integrate(
+        f"{APP_NAME}:temporal-host-info", "temporal-k8s:temporal-host-info"
+    )
+
     await ops_test.juju(
         "wait-for",
         "unit",
         f"{APP_NAME}/0",
         "--query",
-        'workload-status-message!="temporal-server-address configuration is required"',
+        'workload-status-message=="Waiting for temporal-worker-info relation"',
         "--timeout=300s",
     )
+
+    # TODO: Uncomment when we move integration tests to jubilant
+    # There is a bug in python-libjuju that prevents deploying the temporal-worker-k8s charm
+    # here, so leave this out of the tests for now
+    # await ops_test.model.deploy(
+    #     "temporal-worker-k8s",
+    #     application_name="temporal-worker-k8s",
+    #     channel="1.0/stable",
+    #     config={
+    #         "namespace": "namespace",
+    #         "queue": "queue",
+    #     },
+    #     base="ubuntu@24.04",
+    #     series="noble",
+    #     resources={"temporal-worker-image": "ghcr.io/canonical/maas-site-manager:1.1.0"},
+    # )
+
+    # await ops_test.model.integrate(
+    #     f"{APP_NAME}:temporal-worker-info", "temporal-worker-k8s:temporal-worker-info"
+    # )
+
+    # await ops_test.model.wait_for_idle(
+    #     apps=[f"{APP_NAME}"],
+    #     status="active",
+    #     timeout=300,
+    # )
 
 
 # TODO: uncomment once we can use self-hosted GH runners

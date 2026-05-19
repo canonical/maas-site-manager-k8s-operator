@@ -8,13 +8,20 @@ First, add a new model for the Temporal worker and deploy the charm:
 
 ```bash
 juju add-model worker
-juju deploy temporal-worker-k8s --resource temporal-worker-image=ghcr.io/canonical/maas-site-manager:0.1
+juju deploy temporal-worker-k8s --channel 1.0/stable --base ubuntu@24.04 --resource temporal-worker-image=ghcr.io/canonical/maas-site-manager:1.1.0
 ```
 
-From the output of the `microk8s kubectl describe ingress -n temporal` command we used in the previous section where we deployed the Temporal server, note the IP address and port of the `temporal-k8s` service and configure the `temporal-worker-k8s` charm. You may choose whichever `queue` and `namespace` you wish, but ensure that the namespace matches with the one created earlier in the Deploy Temporal section.
+Next, configure the worker charm and relate the temporal server charm to the worker charm
 
 ```bash
-juju config temporal-worker-k8s host=$TEMPORAL_IP:$TEMPORAL_PORT queue=msm-queue namespace=msm-namespace
+juju config temporal-worker-k8s queue=msm-queue namespace=msm-namespace
+juju integrate temporal-worker-k8s admin/temporal.temporal-k8s
+```
+
+We will also need the `temporal-worker-info` relation in another model, so create an offer for it:
+
+```bash
+juju offer temporal-worker-k8s:temporal-worker-info
 ```
 
 ## Deploy MAAS Site Manager
@@ -32,13 +39,8 @@ Next, we provide integrations for MAAS Site Manager:
 juju integrate postgresql-k8s maas-site-manager-k8s
 juju integrate traefik-k8s maas-site-manager-k8s
 juju integrate maas-site-manager-k8s s3-integrator
-```
-
-Next, we need to update the `maas-site-manager-k8s` config, using the same namespace and queue as configured for the worker above:
-
-```bash
-juju switch msm
-juju config maas-site-manager-k8s temporal-server-address=$TEMPORAL_IP:$TEMPORAL_PORT temporal-namespace=msm-namespace temporal-task-queue=msm-queue
+juju integrate maas-site-manager-k8s admin/temporal.temporal-k8s
+juju integrate maas-site-manager-k8s admin/worker.temporal-worker-k8s
 ```
 
 ## Log In
