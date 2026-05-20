@@ -6,14 +6,13 @@ on:
   schedule:
     - cron: "0 0,4,8,12,16,20 * * *"
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   update-lib:
     name: Check libraries
     uses: canonical/observability/.github/workflows/charm-update-libs.yaml@v0
+    permissions:
+      contents: write
+      pull-requests: write
     secrets: inherit
     with:
       commit-username: maas-lander
