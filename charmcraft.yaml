@@ -63,17 +63,20 @@ resources:
 peers:
     site-manager-cluster:
         interface: site_manager_peers
+        optional: false
 
 requires:
     database:
         interface: postgresql_client
         limit: 1
+        optional: false
     logging-consumer:
         interface: loki_push_api
         optional: true
     ingress:
         interface: ingress
         limit: 1
+        optional: false
     tracing:
         interface: tracing
         limit: 1
@@ -81,6 +84,7 @@ requires:
     s3:
         interface: s3
         limit: 1
+        optional: false
     receive-ca-cert:
         interface: certificate_transfer
         optional: true
